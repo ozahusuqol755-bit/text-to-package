@@ -32,10 +32,12 @@ export interface Source {
 }
 
 export type AnalysisDecision = "to_idea" | "archive" | "stop";
+export type AnalysisRiskStatus = "active" | "stopped" | "archived";
 
 export interface Analysis {
   id: string;
   source_id: string;
+  source_refs: string[];
   meaning: string;
   hook: string;
   angle: string;
@@ -43,6 +45,7 @@ export interface Analysis {
   promise: string;
   cta: string;
   risk_notes: string;
+  risk_status: AnalysisRiskStatus;
   platform_fit: Platform[];
   priority_score: number;
   decision: AnalysisDecision;
@@ -69,6 +72,7 @@ export interface Idea {
   source_refs: string[];
   platform_targets: Platform[];
   priority: "low" | "medium" | "high";
+  priority_score: number;
   tags: string[];
   status: IdeaStatus;
   created_at: string;
@@ -109,6 +113,7 @@ export type PackStatus =
   | "approved"
   | "rejected"
   | "scheduled"
+  | "publishing"
   | "published";
 
 export interface ContentPack {
@@ -125,6 +130,7 @@ export interface ReviewCheck {
   id: string;
   pack_id: string;
   label: string;
+  required: boolean;
   passed: boolean;
   note?: string;
 }
@@ -146,6 +152,7 @@ export interface PublishJob {
   scheduled_at?: string;
   published_at?: string;
   error?: string;
+  attempts: number;
 }
 
 export interface Metric {
@@ -161,6 +168,7 @@ export interface Metric {
   er: number;
   errors?: string;
   conclusion?: string;
+  signaled?: boolean;
 }
 
 export interface Tool {
@@ -175,6 +183,8 @@ export interface LogEvent {
   ts: string;
   stage: string;
   entity_id?: string;
+  actor?: string;
+  action?: string;
   message: string;
   level: "info" | "warn" | "error" | "success";
 }
