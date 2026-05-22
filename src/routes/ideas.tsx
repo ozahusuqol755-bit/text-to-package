@@ -1,0 +1,92 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { toast } from "sonner";
+import { usePipeline } from "@/store/PipelineStore";
+import { StageHeader, ToolsRow, SectionTitle, EmptyState } from "@/components/stage/StageHeader";
+import { StatusBadge } from "@/components/stage/StatusBadge";
+import { ArrowRight, Check, X } from "lucide-react";
+
+export const Route = createFileRoute("/ideas")({ component: IdeasPage });
+
+function IdeasPage() {
+  const s = usePipeline();
+
+  return (
+    <>
+      <StageHeader
+        step="Этап 3 · Планирование"
+        title="Идеи комплектуются из смыслов"
+        description="Идея — ещё не пост. Это тема + угол + источники + платформы + приоритет + теги. Из одной идеи дальше собирается контент-пакет."
+        badge={<span className="badge badge-idea">идеи</span>}
+      />
+
+      <ToolsRow tools={["Claude Code Channel — Telegram-пульт", "Claude Code", "Postgres"]} />
+
+      {s.ideas.length === 0 ? (
+        <EmptyState>Идей пока нет.</EmptyState>
+      ) : (
+        <div className="space-y-2">
+          {s.ideas.map((i) => {
+            const hasPack = s.packs.some((p) => p.idea_id === i.id);
+            return (
+              <div key={i.id} className="tg-card">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-[11px] text-muted-foreground">
+                      #{i.id.slice(-3)} · приоритет {i.priority}
+                    </div>
+                    <div className="font-semibold text-sm leading-snug">{i.topic}</div>
+                  </div>
+                  <StatusBadge status={i.status} />
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Угол: {i.angle}. Источники: {i.source_refs.join(", ")}.
+                </p>
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {i.platform_targets.map((p) => (
+                    <span key={p} className="chip">{p}</span>
+                  ))}
+                  {i.tags.map((t) => (
+                    <span key={t} className="chip chip-tool">#{t}</span>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-2 mt-3">
+                  {i.status !== "accepted" ? (
+                    <button
+                      onClick={() => { s.acceptIdea(i.id); toast.success("Идея принята"); }}
+                      className="inline-flex items-center justify-center gap-1 rounded-xl bg-success/20 text-success border border-success/40 px-3 py-2 text-sm font-semibold"
+                    >
+                      <Check className="size-4" /> Принять
+                    </button>
+                  ) : (
+                    <span className="inline-flex items-center justify-center gap-1 rounded-xl bg-success/10 text-success border border-success/30 px-3 py-2 text-sm">
+                      <Check className="size-4" /> Принята
+                    </span>
+                  )}
+                  <button
+                    onClick={() => { s.rejectIdea(i.id); toast("Идея отклонена"); }}
+                    className="inline-flex items-center justify-center gap-1 rounded-xl bg-destructive/20 text-destructive border border-destructive/40 px-3 py-2 text-sm font-semibold"
+                  >
+                    <X className="size-4" /> Отклонить
+                  </button>
+                </div>
+                {i.status === "accepted" && (
+                  <Link
+                    to="/packs"
+                    className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 font-semibold text-primary-foreground"
+                  >
+                    {hasPack ? "Открыть пакет" : "Собрать контент-пакет"} <ArrowRight className="size-4" />
+                  </Link>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <SectionTitle>Поток</SectionTitle>
+      <div className="tg-card-inset text-xs text-muted-foreground text-center">
+        Идея → пакет материалов под площадки
+      </div>
+    </>
+  );
+}
