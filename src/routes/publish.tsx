@@ -65,7 +65,7 @@ function PublishPage() {
                   <>
                     <Rocket className="size-4" /> Опубликовать через n8n / DOHOO
                   </>
-                ) : pack.status === "scheduled" || pack.status === "publishing" ? (
+                ) : pack.status === "scheduled" ? (
                   <>Публикация…</>
                 ) : pack.status === "published" ? (
                   <>Опубликовано</>
