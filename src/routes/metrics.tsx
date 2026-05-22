@@ -1,12 +1,14 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { usePipeline } from "@/store/PipelineStore";
 import { StageHeader, ToolsRow, SectionTitle } from "@/components/stage/StageHeader";
-import { ArrowRight, Repeat } from "lucide-react";
+import { Check, Repeat } from "lucide-react";
 
 export const Route = createFileRoute("/metrics")({ component: MetricsPage });
 
 function MetricsPage() {
   const s = usePipeline();
+  const navigate = useNavigate();
   const totals = s.metrics.reduce(
     (acc, m) => ({
       views: acc.views + m.views,
@@ -54,23 +56,24 @@ function MetricsPage() {
             {m.conclusion && (
               <div className="text-xs text-info mt-2">Вывод: {m.conclusion}</div>
             )}
+            {m.signaled ? (
+              <div className="mt-3 inline-flex items-center gap-1 rounded-lg bg-success/15 text-success border border-success/30 px-2 py-1.5 text-xs">
+                <Check className="size-3.5" /> сигнал отправлен в анализ
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  s.signalMetricToAnalysis(m.id);
+                  toast.success("Сигнал отправлен в анализ");
+                  navigate({ to: "/analysis" });
+                }}
+                className="mt-3 w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary/15 border border-primary/40 text-primary px-3 py-2 text-sm font-semibold"
+              >
+                <Repeat className="size-4" /> Вернуть сигнал в анализ
+              </button>
+            )}
           </div>
         ))}
-      </div>
-
-      <div className="mt-2 rounded-xl border border-dashed border-primary/40 bg-primary/10 p-3">
-        <div className="font-semibold text-sm flex items-center gap-2">
-          <Repeat className="size-4 text-primary" /> Новый цикл
-        </div>
-        <p className="text-xs text-muted-foreground mt-1">
-          Метрики становятся новым рефом и отправляются обратно в анализ.
-        </p>
-        <Link
-          to="/analysis"
-          className="mt-3 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 font-semibold text-primary-foreground"
-        >
-          Отправить метрики в анализ <ArrowRight className="size-4" />
-        </Link>
       </div>
     </>
   );
