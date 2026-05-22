@@ -21,7 +21,6 @@ const map: Record<string, { cls: string; label: string }> = {
   scheduled: { cls: "badge-info", label: "в расписании" },
   publishing: { cls: "badge-info", label: "публикуется" },
   published: { cls: "badge-success", label: "опубликовано" },
-  failed: { cls: "badge-error", label: "ошибка" },
 };
 
 export function StatusBadge({
