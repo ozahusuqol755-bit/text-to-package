@@ -42,8 +42,12 @@ function LogsPage() {
               <div className="min-w-0 flex-1">
                 <div className="text-foreground/90">{log.message}</div>
                 <div className="text-[10px] text-muted-foreground mt-0.5">
-                  {STAGE_LABEL[log.stage] ?? log.stage} · {new Date(log.ts).toLocaleTimeString("ru")}
+                  {STAGE_LABEL[log.stage] ?? log.stage}
+                  {log.action ? ` · ${log.action}` : ""}
+                  {log.actor ? ` · ${log.actor}` : ""}
                   {log.entity_id ? ` · ${log.entity_id}` : ""}
+                  {" · "}
+                  {new Date(log.ts).toLocaleTimeString("ru")}
                 </div>
               </div>
             </div>

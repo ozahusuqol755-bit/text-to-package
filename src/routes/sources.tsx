@@ -22,6 +22,7 @@ const TYPE_LABEL: Record<SourceType, string> = {
 
 function SourcesPage() {
   const s = usePipeline();
+  const [modalOpen, setModalOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
   const [type, setType] = useState<SourceType>("competitor");
@@ -41,9 +42,8 @@ function SourcesPage() {
       tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
     });
     toast.success("Источник сохранён");
-    setTitle("");
-    setUrl("");
-    setTags("");
+    setTitle(""); setUrl(""); setTags("");
+    setModalOpen(false);
   }
 
   return (
@@ -51,54 +51,23 @@ function SourcesPage() {
       <StageHeader
         step="Этап 1 · Вход + парсинг"
         title="Источники: рефы, тренды, документы и первичная обработка"
-        description="Реф и парсинг — один бизнес-этап. Реф — объект, парсинг — действие. На выходе: raw_text, summary, хуки, CTA, формат, риск, теги."
+        description="Реф и парсинг — один бизнес-этап. На выходе: raw_text, summary, хуки, CTA, формат, риск, теги."
         badge={<span className="badge badge-new">inbox</span>}
       />
 
-      <div className="tg-card space-y-2">
-        <div className="grid grid-cols-2 gap-2">
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Название источника"
-            className="bg-black/30 border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary col-span-2"
-          />
-          <input
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://..."
-            className="bg-black/30 border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary"
-          />
-          <select
-            value={type}
-            onChange={(e) => setType(e.target.value as SourceType)}
-            className="bg-black/30 border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary"
-          >
-            {Object.entries(TYPE_LABEL).map(([k, v]) => (
-              <option key={k} value={k}>{v}</option>
-            ))}
-          </select>
-        </div>
-        <input
-          value={tags}
-          onChange={(e) => setTags(e.target.value)}
-          placeholder="теги через запятую"
-          className="w-full bg-black/30 border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary"
-        />
-        <button
-          onClick={add}
-          className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 font-semibold text-primary-foreground"
-        >
-          <Plus className="size-4" /> Добавить источник
-        </button>
-      </div>
+      <button
+        onClick={() => setModalOpen(true)}
+        className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 font-semibold text-primary-foreground"
+      >
+        <Plus className="size-4" /> Добавить источник
+      </button>
 
       <SectionTitle>Инструменты этапа</SectionTitle>
       <ToolsRow tools={["ScrapeCreators", "ViralMaxing / Virale", "NotebookLM", "Notion / Sheets", "Postgres"]} />
 
       <SectionTitle>Очередь источников</SectionTitle>
       {s.sources.length === 0 ? (
-        <EmptyState>Пока пусто. Добавьте первый источник выше.</EmptyState>
+        <EmptyState>Пока пусто. Нажмите «Добавить источник».</EmptyState>
       ) : (
         <div className="space-y-2">
           {s.sources.map((src) => {
@@ -114,22 +83,16 @@ function SourcesPage() {
                     <div className="text-[11px] text-muted-foreground">
                       {TYPE_LABEL[src.source_type]}
                     </div>
-                    <div className="font-semibold text-sm leading-snug truncate">
-                      {src.title}
-                    </div>
+                    <div className="font-semibold text-sm leading-snug truncate">{src.title}</div>
                   </div>
                   <StatusBadge status={src.status} />
                 </div>
                 {src.summary ? (
-                  <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
-                    {src.summary}
-                  </p>
+                  <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{src.summary}</p>
                 ) : null}
                 {src.tags.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1">
-                    {src.tags.map((t) => (
-                      <span key={t} className="chip">#{t}</span>
-                    ))}
+                    {src.tags.map((t) => (<span key={t} className="chip">#{t}</span>))}
                   </div>
                 )}
               </button>
@@ -144,8 +107,8 @@ function SourcesPage() {
           <div className="tg-card space-y-2">
             <div className="grid grid-cols-2 gap-2">
               <button
-                onClick={() => { s.parseSource(selected.id); toast.success("Парсинг запущен"); }}
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-info text-info-foreground px-3 py-2.5 text-sm font-semibold"
+                onClick={() => { s.parseSource(selected.id); toast.success("Парсинг выполнен"); }}
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-info/30 text-info border border-info/40 px-3 py-2.5 text-sm font-semibold"
               >
                 <Play className="size-4" /> {selected.status === "parsed" ? "Reparse" : "Распарсить"}
               </button>
@@ -184,6 +147,54 @@ function SourcesPage() {
       >
         Перейти к анализу <ArrowRight className="size-4" />
       </Link>
+
+      {modalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-3"
+          onClick={() => setModalOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-card border border-border rounded-2xl p-4 space-y-2"
+          >
+            <div className="flex items-center justify-between">
+              <div className="font-semibold">Новый источник</div>
+              <button onClick={() => setModalOpen(false)} className="text-muted-foreground">
+                <X className="size-4" />
+              </button>
+            </div>
+            <input
+              value={title} onChange={(e) => setTitle(e.target.value)}
+              placeholder="Название источника"
+              className="w-full bg-black/30 border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary"
+            />
+            <input
+              value={url} onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://..."
+              className="w-full bg-black/30 border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary"
+            />
+            <select
+              value={type} onChange={(e) => setType(e.target.value as SourceType)}
+              className="w-full bg-black/30 border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary"
+            >
+              {Object.entries(TYPE_LABEL).map(([k, v]) => (
+                <option key={k} value={k}>{v}</option>
+              ))}
+            </select>
+            <input
+              value={tags} onChange={(e) => setTags(e.target.value)}
+              placeholder="теги через запятую"
+              className="w-full bg-black/30 border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary"
+            />
+            <button
+              onClick={add}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 font-semibold text-primary-foreground"
+            >
+              <Plus className="size-4" /> Сохранить источник
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }

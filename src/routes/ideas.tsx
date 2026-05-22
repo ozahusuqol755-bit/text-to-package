@@ -1,14 +1,15 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { usePipeline } from "@/store/PipelineStore";
 import { StageHeader, ToolsRow, SectionTitle, EmptyState } from "@/components/stage/StageHeader";
 import { StatusBadge } from "@/components/stage/StatusBadge";
-import { ArrowRight, Check, X } from "lucide-react";
+import { ArrowRight, Check, Package, X } from "lucide-react";
 
 export const Route = createFileRoute("/ideas")({ component: IdeasPage });
 
 function IdeasPage() {
   const s = usePipeline();
+  const navigate = useNavigate();
 
   return (
     <>
@@ -32,14 +33,14 @@ function IdeasPage() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="text-[11px] text-muted-foreground">
-                      #{i.id.slice(-3)} · приоритет {i.priority}
+                      #{i.id.slice(-3)} · приоритет {i.priority} · score {i.priority_score}
                     </div>
                     <div className="font-semibold text-sm leading-snug">{i.topic}</div>
                   </div>
                   <StatusBadge status={i.status} />
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Угол: {i.angle}. Источники: {i.source_refs.join(", ")}.
+                  Угол: {i.angle}. Источники: {i.source_refs.join(", ") || "—"}.
                 </p>
                 <div className="mt-2 flex flex-wrap gap-1">
                   {i.platform_targets.map((p) => (
@@ -50,7 +51,7 @@ function IdeasPage() {
                   ))}
                 </div>
                 <div className="grid grid-cols-2 gap-2 mt-3">
-                  {i.status !== "accepted" ? (
+                  {i.status !== "accepted" && i.status !== "in_pack" ? (
                     <button
                       onClick={() => { s.acceptIdea(i.id); toast.success("Идея принята"); }}
                       className="inline-flex items-center justify-center gap-1 rounded-xl bg-success/20 text-success border border-success/40 px-3 py-2 text-sm font-semibold"
@@ -59,7 +60,7 @@ function IdeasPage() {
                     </button>
                   ) : (
                     <span className="inline-flex items-center justify-center gap-1 rounded-xl bg-success/10 text-success border border-success/30 px-3 py-2 text-sm">
-                      <Check className="size-4" /> Принята
+                      <Check className="size-4" /> {i.status === "in_pack" ? "В пакете" : "Принята"}
                     </span>
                   )}
                   <button
@@ -69,13 +70,21 @@ function IdeasPage() {
                     <X className="size-4" /> Отклонить
                   </button>
                 </div>
-                {i.status === "accepted" && (
-                  <Link
-                    to="/packs"
+                {(i.status === "accepted" || i.status === "in_pack") && (
+                  <button
+                    onClick={() => {
+                      const packId = s.buildPackFromIdea(i.id);
+                      if (packId) {
+                        toast.success(hasPack ? "Пакет открыт" : "Контент-пакет собран");
+                        navigate({ to: "/packs" });
+                      }
+                    }}
                     className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 font-semibold text-primary-foreground"
                   >
-                    {hasPack ? "Открыть пакет" : "Собрать контент-пакет"} <ArrowRight className="size-4" />
-                  </Link>
+                    <Package className="size-4" />
+                    {hasPack ? "Открыть пакет" : "Собрать контент-пакет"}
+                    <ArrowRight className="size-4" />
+                  </button>
                 )}
               </div>
             );
@@ -85,7 +94,7 @@ function IdeasPage() {
 
       <SectionTitle>Поток</SectionTitle>
       <div className="tg-card-inset text-xs text-muted-foreground text-center">
-        Идея → пакет материалов под площадки
+        Идея → пакет материалов под 9 площадок
       </div>
     </>
   );
