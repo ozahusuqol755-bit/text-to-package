@@ -238,12 +238,14 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
 
     // ── IDEAS ───────────────────────────────────────────────────────
     const acceptIdea = (id: string) => {
+      const i = state.ideas.find((x) => x.id === id);
       dispatch({ type: "PATCH_IDEA", id, patch: { status: "accepted" } });
-      log({ stage: "ideas", action: "accept", entity_id: id, message: `Идея ${id} принята`, level: "success" });
+      log({ stage: "ideas", action: "accept", entity_type: "idea", entity_id: id, status_before: i?.status, status_after: "accepted", message: `Идея ${id} принята`, level: "success" });
     };
     const rejectIdea = (id: string) => {
+      const i = state.ideas.find((x) => x.id === id);
       dispatch({ type: "PATCH_IDEA", id, patch: { status: "rejected" } });
-      log({ stage: "ideas", action: "reject", entity_id: id, message: `Идея ${id} отклонена`, level: "warn" });
+      log({ stage: "ideas", action: "reject", entity_type: "idea", entity_id: id, status_before: i?.status, status_after: "rejected", message: `Идея ${id} отклонена`, level: "warn" });
     };
 
     const createContentPackFromIdea: ContextValue["createContentPackFromIdea"] = (ideaId) => {
