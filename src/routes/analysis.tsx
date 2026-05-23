@@ -1,14 +1,18 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { toast } from "sonner";
 import { usePipeline } from "@/store/PipelineStore";
 import { StageHeader, ToolsRow, SectionTitle, EmptyState } from "@/components/stage/StageHeader";
-import { ArrowRight, Lightbulb, Archive, Ban } from "lucide-react";
+import { DetailDrawer } from "@/components/DetailDrawer";
+import { ArrowRight, Archive, Ban, Info, Lightbulb } from "lucide-react";
 
 export const Route = createFileRoute("/analysis")({ component: AnalysisPage });
 
 function AnalysisPage() {
   const s = usePipeline();
   const navigate = useNavigate();
+  const [drawerId, setDrawerId] = useState<string | null>(null);
+  const drawer = s.analyses.find((a) => a.id === drawerId) ?? null;
   const hooks = s.analyses.reduce((acc, a) => acc + (a.hook && a.hook !== "—" ? 1 : 0), 0);
   const themes = s.analyses.filter((a) => a.decision === "to_idea").length;
   const usefulness = Math.round(
