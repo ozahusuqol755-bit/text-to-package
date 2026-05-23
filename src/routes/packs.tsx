@@ -4,7 +4,8 @@ import { toast } from "sonner";
 import { usePipeline } from "@/store/PipelineStore";
 import { StageHeader, ToolsRow, SectionTitle, EmptyState } from "@/components/stage/StageHeader";
 import { StatusBadge } from "@/components/stage/StatusBadge";
-import { ArrowRight, ChevronDown, ChevronRight, RefreshCw, Send } from "lucide-react";
+import { DetailDrawer } from "@/components/DetailDrawer";
+import { ArrowRight, ChevronDown, ChevronRight, Info, RefreshCw, Send } from "lucide-react";
 
 export const Route = createFileRoute("/packs")({ component: PacksPage });
 
