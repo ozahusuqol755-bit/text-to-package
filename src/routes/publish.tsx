@@ -11,6 +11,8 @@ export const Route = createFileRoute("/publish")({ component: PublishPage });
 
 function PublishPage() {
   const s = usePipeline();
+  const [jobDrawerId, setJobDrawerId] = useState<string | null>(null);
+  const jobDrawer = s.publishJobs.find((j) => j.id === jobDrawerId) ?? null;
   const visible = s.packs.filter((p) => p.status !== "draft" && p.status !== "ready_for_review" && p.status !== "rejected" && p.status !== "rewrite_requested");
 
   return (
