@@ -6,7 +6,11 @@
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "build": "tsc"
+    "build": "tsc",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "db:migrate": "sh -c 'command -v docker >/dev/null || { echo \"docker CLI is required\"; exit 127; }; until docker compose exec -T postgres pg_isready -U postgres -d content_factory; do sleep 1; done; docker compose exec -T postgres psql -U postgres -d content_factory < ../db/migrations/001_initial_schema.sql'",
+    "db:reset": "docker compose down -v && docker compose up -d postgres && npm run db:migrate"
   },
   "dependencies": {
     "dotenv": "^17.2.3",
