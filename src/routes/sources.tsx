@@ -76,10 +76,10 @@ function SourcesPage() {
           {s.sources.map((src) => {
             const active = src.id === selectedId;
             return (
-              <button
+              <div
                 key={src.id}
                 onClick={() => setSelectedId(src.id)}
-                className={`w-full text-left tg-card ${active ? "ring-1 ring-primary/50" : ""}`}
+                className={`tg-card cursor-pointer ${active ? "ring-1 ring-primary/50" : ""}`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
@@ -88,7 +88,16 @@ function SourcesPage() {
                     </div>
                     <div className="font-semibold text-sm leading-snug truncate">{src.title}</div>
                   </div>
-                  <StatusBadge status={src.status} />
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <StatusBadge status={src.status} />
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setDrawerId(src.id); }}
+                      className="text-muted-foreground hover:text-foreground"
+                      aria-label="Подробнее"
+                    >
+                      <Info className="size-4" />
+                    </button>
+                  </div>
                 </div>
                 {src.summary ? (
                   <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{src.summary}</p>
@@ -98,7 +107,7 @@ function SourcesPage() {
                     {src.tags.map((t) => (<span key={t} className="chip">#{t}</span>))}
                   </div>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>
