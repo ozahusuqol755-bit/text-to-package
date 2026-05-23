@@ -97,6 +97,15 @@ function PublishPage() {
                           {job?.error && <div className="text-[10px] text-destructive mt-1">{job.error}</div>}
                         </td>
                         <td>
+                          {job && (
+                            <button
+                              onClick={() => setJobDrawerId(job.id)}
+                              className="inline-flex items-center gap-1 rounded-md bg-muted text-muted-foreground border border-border px-1.5 py-1 text-[10px] font-semibold mr-1"
+                              aria-label="Подробнее"
+                            >
+                              <Info className="size-3" />
+                            </button>
+                          )}
                           {job?.status === "failed" && (
                             <button
                               onClick={() => { s.retryPublishJob(job.id); toast("Retry…"); }}
