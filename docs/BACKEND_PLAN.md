@@ -51,6 +51,9 @@ not from local mock arrays. Postgres constraints should protect basic data
 shape, while business guards that depend on multiple rows should run in API
 transactions.
 
+`updated_at` should be maintained by the database with a shared trigger so API
+handlers do not need to remember to set it manually on every update.
+
 ### n8n Executor Role
 
 n8n is an executor, not the source of truth. The API sends work to n8n through
@@ -59,6 +62,10 @@ webhooks, and n8n reports results back to API callback endpoints.
 n8n should not bypass API guards or update Postgres directly for critical state
 changes. Publish job status updates should come back through the API so they can
 be logged, validated, and correlated with `publish_jobs`.
+
+Analyses can originate from either a source or the metrics feedback loop. The
+schema keeps `analyses.source_id` for source-origin analyses and `metric_id` for
+metric-origin analyses, with a database check requiring exactly one of them.
 
 ### Telegram Mini App initData Auth
 
@@ -172,14 +179,14 @@ logging, job creation, and n8n orchestration context.
 
 ## n8n Webhook Map
 
-| Webhook | API input | Expected callback |
-| ------- | --------- | ----------------- |
-| `parse source` | `source_id` | parsed source fields and status |
-| `generate analysis` | `source_id` | analysis payload |
-| `generate idea` | `analysis_id` | idea payload |
-| `build content pack` | `idea_id`, platform targets | assets and review checks |
-| `publish content` | `pack_id`, publish job ids, assets | publish job status updates |
-| `collect metrics` | `pack_id` or date range | metrics payload |
+| Webhook              | API input                          | Expected callback               |
+| -------------------- | ---------------------------------- | ------------------------------- |
+| `parse source`       | `source_id`                        | parsed source fields and status |
+| `generate analysis`  | `source_id`                        | analysis payload                |
+| `generate idea`      | `analysis_id`                      | idea payload                    |
+| `build content pack` | `idea_id`, platform targets        | assets and review checks        |
+| `publish content`    | `pack_id`, publish job ids, assets | publish job status updates      |
+| `collect metrics`    | `pack_id` or date range            | metrics payload                 |
 
 ## Implementation Order
 
@@ -196,3 +203,8 @@ logging, job creation, and n8n orchestration context.
 11. Add backend tests for guards and state transitions.
 12. Only after backend behavior matches the current MVP, switch the frontend
     data layer from mock state to API calls.
+
+Before starting the API service, verify that the first migration can be applied
+to a fresh Postgres database and that the service contract maps the current
+frontend `Analysis.source_id` field correctly for both source-origin and
+metric-origin analyses.

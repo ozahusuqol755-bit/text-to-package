@@ -36,7 +36,8 @@ create table sources (
 
 create table analyses (
   id uuid primary key default gen_random_uuid(),
-  source_id uuid not null references sources(id) on delete cascade,
+  source_id uuid references sources(id) on delete cascade,
+  metric_id uuid,
   source_refs jsonb not null default '[]'::jsonb,
   meaning text not null,
   hook text not null,
@@ -52,7 +53,8 @@ create table analyses (
   priority_score integer not null check (priority_score >= 0),
   decision text not null default 'to_idea' check (decision in ('to_idea', 'archive', 'stop')),
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  check (((source_id is not null)::int + (metric_id is not null)::int) = 1)
 );
 
 create table ideas (
@@ -126,6 +128,10 @@ create table review_checks (
   updated_at timestamptz not null default now()
 );
 
+-- Approve guard is intentionally enforced in the API transaction:
+-- the pack must have at least one review_checks row, at least one required row,
+-- and every required row must have passed = true.
+
 create table publish_jobs (
   id uuid primary key default gen_random_uuid(),
   pack_id uuid not null references content_packs(id) on delete cascade,
@@ -174,6 +180,10 @@ create table metrics (
   updated_at timestamptz not null default now()
 );
 
+alter table analyses
+  add constraint analyses_metric_id_fkey
+  foreign key (metric_id) references metrics(id) on delete cascade;
+
 create table pipeline_logs (
   id uuid primary key default gen_random_uuid(),
   ts timestamptz not null default now(),
@@ -205,11 +215,62 @@ create table tools (
   updated_at timestamptz not null default now()
 );
 
+create function set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+create trigger trg_sources_updated_at
+before update on sources
+for each row execute function set_updated_at();
+
+create trigger trg_analyses_updated_at
+before update on analyses
+for each row execute function set_updated_at();
+
+create trigger trg_ideas_updated_at
+before update on ideas
+for each row execute function set_updated_at();
+
+create trigger trg_content_packs_updated_at
+before update on content_packs
+for each row execute function set_updated_at();
+
+create trigger trg_content_assets_updated_at
+before update on content_assets
+for each row execute function set_updated_at();
+
+create trigger trg_review_checks_updated_at
+before update on review_checks
+for each row execute function set_updated_at();
+
+create trigger trg_publish_jobs_updated_at
+before update on publish_jobs
+for each row execute function set_updated_at();
+
+create trigger trg_metrics_updated_at
+before update on metrics
+for each row execute function set_updated_at();
+
+create trigger trg_pipeline_logs_updated_at
+before update on pipeline_logs
+for each row execute function set_updated_at();
+
+create trigger trg_tools_updated_at
+before update on tools
+for each row execute function set_updated_at();
+
 create index idx_sources_status on sources(status);
 
 create index idx_analyses_status on analyses(risk_status);
 create index idx_analyses_decision on analyses(decision);
 create index idx_analyses_source_id on analyses(source_id);
+create index idx_analyses_metric_id on analyses(metric_id);
 
 create index idx_ideas_status on ideas(status);
 
