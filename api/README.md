@@ -25,6 +25,10 @@ The API expects `DATABASE_URL` to point at a Postgres database with
 `db/migrations/001_initial_schema.sql` applied manually. Migrations are not run
 automatically.
 
+If Postgres is not running, DB-backed endpoints return
+`503 database_unavailable`. If the database exists but the migration has not
+been applied, they return `database_schema_missing`.
+
 ## Current Endpoints
 
 - `GET /health`

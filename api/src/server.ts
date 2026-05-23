@@ -1,7 +1,7 @@
 import process from "node:process";
 import Fastify from "fastify";
 import { config } from "./config.js";
-import { closeDb } from "./db.js";
+import { closeDb, DatabaseSchemaError, DatabaseUnavailableError } from "./db.js";
 import { registerTelegramAuth } from "./middleware/telegramAuth.js";
 import { healthRoutes } from "./routes/health.js";
 import { logRoutes } from "./routes/logs.js";
@@ -11,6 +11,19 @@ import { sourceRoutes } from "./routes/sources.js";
 export async function buildServer() {
   const app = Fastify({
     logger: config.NODE_ENV !== "test",
+  });
+
+  app.setErrorHandler((error, _request, reply) => {
+    if (error instanceof DatabaseUnavailableError || error instanceof DatabaseSchemaError) {
+      const statusCode = error instanceof DatabaseUnavailableError ? 503 : 500;
+      void reply.status(statusCode).send({
+        error: error.code,
+        message: error.message,
+      });
+      return;
+    }
+
+    void reply.send(error);
   });
 
   await registerTelegramAuth(app);
