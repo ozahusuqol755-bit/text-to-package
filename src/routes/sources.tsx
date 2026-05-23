@@ -29,7 +29,9 @@ function SourcesPage() {
   const [type, setType] = useState<SourceType>("competitor");
   const [tags, setTags] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(s.sources[0]?.id ?? null);
+  const [drawerId, setDrawerId] = useState<string | null>(null);
   const selected = s.sources.find((x) => x.id === selectedId) ?? null;
+  const drawerSrc = s.sources.find((x) => x.id === drawerId) ?? null;
 
   function add() {
     if (!title.trim()) {
