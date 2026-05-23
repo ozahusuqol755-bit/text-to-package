@@ -55,7 +55,12 @@ function AnalysisPage() {
                     </div>
                     <div className="font-semibold text-sm leading-snug">{a.meaning}</div>
                   </div>
-                  <DecisionBadge d={a.decision} score={a.priority_score} />
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <DecisionBadge d={a.decision} score={a.priority_score} />
+                    <button onClick={() => setDrawerId(a.id)} className="text-muted-foreground hover:text-foreground" aria-label="Подробнее">
+                      <Info className="size-4" />
+                    </button>
+                  </div>
                 </div>
                 {a.decision !== "stop" && (
                   <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
