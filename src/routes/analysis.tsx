@@ -120,6 +120,32 @@ function AnalysisPage() {
           Перейти к идеям <ArrowRight className="size-4" />
         </Link>
       </div>
+
+      <DetailDrawer
+        open={!!drawer}
+        onClose={() => setDrawerId(null)}
+        kind="Анализ"
+        id={drawer?.id ?? ""}
+        title={drawer?.meaning ?? ""}
+        status={drawer?.risk_status ?? "—"}
+        body={drawer ? `${drawer.hook} · ${drawer.angle}` : null}
+        refs={drawer ? [
+          { label: "source_id", value: drawer.source_id },
+          { label: "source_refs", value: drawer.source_refs.join(", ") },
+          { label: "pain", value: drawer.pain },
+          { label: "promise", value: drawer.promise },
+          { label: "cta", value: drawer.cta },
+          { label: "platform_fit", value: drawer.platform_fit.join(", ") },
+          { label: "priority_score", value: String(drawer.priority_score) },
+          { label: "decision", value: drawer.decision },
+          { label: "risk_notes", value: drawer.risk_notes },
+        ] : []}
+        nextActions={drawer ? [
+          { label: "Создать идею", onClick: () => { const id = s.createIdeaFromAnalysis(drawer.id); if (id) { toast.success("Идея создана"); navigate({ to: "/ideas" }); } }, variant: "primary", disabled: drawer.risk_status !== "active" },
+          { label: "В архив", onClick: () => { s.archiveAnalysis(drawer.id); toast("В архиве"); }, variant: "muted" },
+          { label: "Стоп", onClick: () => { s.stopAnalysis(drawer.id); toast.error("Остановлен"); }, variant: "danger" },
+        ] : []}
+      />
     </>
   );
 }
