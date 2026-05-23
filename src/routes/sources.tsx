@@ -4,8 +4,9 @@ import { toast } from "sonner";
 import { usePipeline } from "@/store/PipelineStore";
 import { StageHeader, ToolsRow, SectionTitle, EmptyState } from "@/components/stage/StageHeader";
 import { StatusBadge } from "@/components/stage/StatusBadge";
+import { DetailDrawer } from "@/components/DetailDrawer";
 import type { SourceType } from "@/types/pipeline";
-import { ArrowRight, Plus, Play, X, Send } from "lucide-react";
+import { ArrowRight, Plus, Play, X, Send, Info } from "lucide-react";
 
 export const Route = createFileRoute("/sources")({ component: SourcesPage });
 
