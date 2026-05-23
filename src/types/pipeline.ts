@@ -199,7 +199,7 @@ export interface LogEvent {
   action?: string;
   status_before?: string;
   status_after?: string;
-  result: LogResult;
+  result?: LogResult;
   job_id?: string;
   message: string;
   /** @deprecated kept for back-compat; mirrors `result` */
