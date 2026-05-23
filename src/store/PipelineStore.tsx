@@ -162,10 +162,17 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
 
   const value = useMemo<ContextValue>(() => {
-    const log = (e: Omit<LogEvent, "id" | "ts">) =>
+    const LEVEL_TO_RESULT = { success: "success", info: "success", warn: "warning", error: "error" } as const;
+    const log = (e: Omit<LogEvent, "id" | "ts" | "result"> & { result?: LogEvent["result"] }) =>
       dispatch({
         type: "LOG",
-        payload: { id: uid("log"), ts: new Date().toISOString(), actor: OPERATOR, ...e },
+        payload: {
+          id: uid("log"),
+          ts: new Date().toISOString(),
+          actor: OPERATOR,
+          result: e.result ?? LEVEL_TO_RESULT[e.level],
+          ...e,
+        },
       });
 
     // ── SOURCES ─────────────────────────────────────────────────────
