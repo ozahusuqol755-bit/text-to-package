@@ -207,6 +207,29 @@ function SourcesPage() {
           </div>
         </div>
       )}
+
+      <DetailDrawer
+        open={!!drawerSrc}
+        onClose={() => setDrawerId(null)}
+        kind="Источник"
+        id={drawerSrc?.id ?? ""}
+        title={drawerSrc?.title ?? ""}
+        status={drawerSrc?.status ?? ""}
+        body={drawerSrc?.summary || drawerSrc?.raw_text || "—"}
+        refs={drawerSrc ? [
+          { label: "source_type", value: TYPE_LABEL[drawerSrc.source_type] },
+          { label: "url", value: drawerSrc.url ?? "—" },
+          { label: "hooks", value: drawerSrc.hooks?.join(" · ") || "—" },
+          { label: "cta", value: drawerSrc.cta ?? "—" },
+          { label: "tags", value: drawerSrc.tags.join(", ") || "—" },
+          { label: "source_risk", value: drawerSrc.source_risk ?? "—" },
+        ] : []}
+        nextActions={drawerSrc ? [
+          { label: drawerSrc.status === "parsed" ? "Reparse" : "Распарсить", onClick: () => s.parseSource(drawerSrc.id), variant: "muted" },
+          { label: "В анализ", onClick: () => s.sendSourceToAnalysis(drawerSrc.id), variant: "primary" },
+          { label: "Отклонить", onClick: () => s.rejectSource(drawerSrc.id), variant: "danger" },
+        ] : []}
+      />
     </>
   );
 }
