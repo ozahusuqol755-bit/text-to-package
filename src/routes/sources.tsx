@@ -42,10 +42,15 @@ function SourcesPage() {
       title: title.trim(),
       url: url.trim() || undefined,
       source_type: type,
-      tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
+      tags: tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
     });
     toast.success("Источник сохранён");
-    setTitle(""); setUrl(""); setTags("");
+    setTitle("");
+    setUrl("");
+    setTags("");
     setModalOpen(false);
   }
 
@@ -66,7 +71,15 @@ function SourcesPage() {
       </button>
 
       <SectionTitle>Инструменты этапа</SectionTitle>
-      <ToolsRow tools={["ScrapeCreators", "ViralMaxing / Virale", "NotebookLM", "Notion / Sheets", "Postgres"]} />
+      <ToolsRow
+        tools={[
+          "ScrapeCreators",
+          "ViralMaxing / Virale",
+          "NotebookLM",
+          "Notion / Sheets",
+          "Postgres",
+        ]}
+      />
 
       <SectionTitle>Очередь источников</SectionTitle>
       {s.sources.length === 0 ? (
@@ -91,7 +104,10 @@ function SourcesPage() {
                   <div className="flex items-center gap-1.5 shrink-0">
                     <StatusBadge status={src.status} />
                     <button
-                      onClick={(e) => { e.stopPropagation(); setDrawerId(src.id); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDrawerId(src.id);
+                      }}
                       className="text-muted-foreground hover:text-foreground"
                       aria-label="Подробнее"
                     >
@@ -104,7 +120,11 @@ function SourcesPage() {
                 ) : null}
                 {src.tags.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1">
-                    {src.tags.map((t) => (<span key={t} className="chip">#{t}</span>))}
+                    {src.tags.map((t) => (
+                      <span key={t} className="chip">
+                        #{t}
+                      </span>
+                    ))}
                   </div>
                 )}
               </div>
@@ -119,19 +139,29 @@ function SourcesPage() {
           <div className="tg-card space-y-2">
             <div className="grid grid-cols-2 gap-2">
               <button
-                onClick={() => { s.parseSource(selected.id); toast.success("Парсинг выполнен"); }}
+                onClick={() => {
+                  s.parseSource(selected.id);
+                  toast.success("Парсинг выполнен");
+                }}
                 className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-info/30 text-info border border-info/40 px-3 py-2.5 text-sm font-semibold"
               >
-                <Play className="size-4" /> {selected.status === "parsed" ? "Reparse" : "Распарсить"}
+                <Play className="size-4" />{" "}
+                {selected.status === "parsed" ? "Reparse" : "Распарсить"}
               </button>
               <button
-                onClick={() => { s.sendSourceToAnalysis(selected.id); toast.success("Передан в анализ"); }}
+                onClick={() => {
+                  s.sendSourceToAnalysis(selected.id);
+                  toast.success("Передан в анализ");
+                }}
                 className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary text-primary-foreground px-3 py-2.5 text-sm font-semibold"
               >
                 <Send className="size-4" /> В анализ
               </button>
               <button
-                onClick={() => { s.rejectSource(selected.id); toast("Источник отклонён"); }}
+                onClick={() => {
+                  s.rejectSource(selected.id);
+                  toast("Источник отклонён");
+                }}
                 className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-destructive/20 text-destructive border border-destructive/40 px-3 py-2.5 text-sm font-semibold col-span-2"
               >
                 <X className="size-4" /> Отклонить
@@ -176,25 +206,31 @@ function SourcesPage() {
               </button>
             </div>
             <input
-              value={title} onChange={(e) => setTitle(e.target.value)}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
               placeholder="Название источника"
               className="w-full bg-black/30 border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary"
             />
             <input
-              value={url} onChange={(e) => setUrl(e.target.value)}
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
               placeholder="https://..."
               className="w-full bg-black/30 border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary"
             />
             <select
-              value={type} onChange={(e) => setType(e.target.value as SourceType)}
+              value={type}
+              onChange={(e) => setType(e.target.value as SourceType)}
               className="w-full bg-black/30 border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary"
             >
               {Object.entries(TYPE_LABEL).map(([k, v]) => (
-                <option key={k} value={k}>{v}</option>
+                <option key={k} value={k}>
+                  {v}
+                </option>
               ))}
             </select>
             <input
-              value={tags} onChange={(e) => setTags(e.target.value)}
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
               placeholder="теги через запятую"
               className="w-full bg-black/30 border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary"
             />
@@ -216,19 +252,39 @@ function SourcesPage() {
         title={drawerSrc?.title ?? ""}
         status={drawerSrc?.status ?? ""}
         body={drawerSrc?.summary || drawerSrc?.raw_text || "—"}
-        refs={drawerSrc ? [
-          { label: "source_type", value: TYPE_LABEL[drawerSrc.source_type] },
-          { label: "url", value: drawerSrc.url ?? "—" },
-          { label: "hooks", value: drawerSrc.hooks?.join(" · ") || "—" },
-          { label: "cta", value: drawerSrc.cta ?? "—" },
-          { label: "tags", value: drawerSrc.tags.join(", ") || "—" },
-          { label: "source_risk", value: drawerSrc.source_risk ?? "—" },
-        ] : []}
-        nextActions={drawerSrc ? [
-          { label: drawerSrc.status === "parsed" ? "Reparse" : "Распарсить", onClick: () => s.parseSource(drawerSrc.id), variant: "muted" },
-          { label: "В анализ", onClick: () => s.sendSourceToAnalysis(drawerSrc.id), variant: "primary" },
-          { label: "Отклонить", onClick: () => s.rejectSource(drawerSrc.id), variant: "danger" },
-        ] : []}
+        refs={
+          drawerSrc
+            ? [
+                { label: "source_type", value: TYPE_LABEL[drawerSrc.source_type] },
+                { label: "url", value: drawerSrc.url ?? "—" },
+                { label: "hooks", value: drawerSrc.hooks?.join(" · ") || "—" },
+                { label: "cta", value: drawerSrc.cta ?? "—" },
+                { label: "tags", value: drawerSrc.tags.join(", ") || "—" },
+                { label: "source_risk", value: drawerSrc.source_risk ?? "—" },
+              ]
+            : []
+        }
+        nextActions={
+          drawerSrc
+            ? [
+                {
+                  label: drawerSrc.status === "parsed" ? "Reparse" : "Распарсить",
+                  onClick: () => s.parseSource(drawerSrc.id),
+                  variant: "muted",
+                },
+                {
+                  label: "В анализ",
+                  onClick: () => s.sendSourceToAnalysis(drawerSrc.id),
+                  variant: "primary",
+                },
+                {
+                  label: "Отклонить",
+                  onClick: () => s.rejectSource(drawerSrc.id),
+                  variant: "danger",
+                },
+              ]
+            : []
+        }
       />
     </>
   );

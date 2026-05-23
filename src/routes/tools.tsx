@@ -31,7 +31,9 @@ function ToolsPage() {
             <div className="text-[11px] text-muted-foreground mt-0.5">{t.role}</div>
             <div className="mt-2 flex flex-wrap gap-1">
               {t.stage.map((st) => (
-                <span key={st} className="chip">{STAGE_LABEL[st] ?? st}</span>
+                <span key={st} className="chip">
+                  {STAGE_LABEL[st] ?? st}
+                </span>
               ))}
             </div>
           </div>

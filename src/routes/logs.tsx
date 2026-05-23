@@ -68,9 +68,29 @@ function LogsPage() {
         description="Каждое событие фиксирует actor, сущность, статус до/после и результат. Это полный след для отладки и контроля оператора."
       />
 
-      <FilterRow label="Этап" value={stage} onChange={setStage} options={[{ k: "all", l: "все" }, ...stages.map((x) => ({ k: x, l: STAGE_LABEL[x] ?? x }))]} />
-      <FilterRow label="Actor" value={actor} onChange={setActor} options={[{ k: "all", l: "все" }, ...actors.map((x) => ({ k: x, l: x }))]} />
-      <FilterRow label="Result" value={result} onChange={setResult} options={[{ k: "all", l: "все" }, { k: "success", l: "success" }, { k: "warning", l: "warning" }, { k: "error", l: "error" }]} />
+      <FilterRow
+        label="Этап"
+        value={stage}
+        onChange={setStage}
+        options={[{ k: "all", l: "все" }, ...stages.map((x) => ({ k: x, l: STAGE_LABEL[x] ?? x }))]}
+      />
+      <FilterRow
+        label="Actor"
+        value={actor}
+        onChange={setActor}
+        options={[{ k: "all", l: "все" }, ...actors.map((x) => ({ k: x, l: x }))]}
+      />
+      <FilterRow
+        label="Result"
+        value={result}
+        onChange={setResult}
+        options={[
+          { k: "all", l: "все" },
+          { k: "success", l: "success" },
+          { k: "warning", l: "warning" },
+          { k: "error", l: "error" },
+        ]}
+      />
 
       <div className="text-[11px] text-muted-foreground mt-3 mb-1 px-1">
         Показано {filtered.length} из {s.logs.length}
@@ -127,7 +147,9 @@ function FilterRow({
 }) {
   return (
     <div className="mt-2">
-      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1 px-1">{label}</div>
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1 px-1">
+        {label}
+      </div>
       <div className="flex flex-wrap gap-1.5">
         {options.map((o) => (
           <button

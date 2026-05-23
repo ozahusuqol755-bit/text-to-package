@@ -43,7 +43,11 @@ function IdeasPage() {
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <StatusBadge status={i.status} />
-                    <button onClick={() => setDrawerId(i.id)} className="text-muted-foreground hover:text-foreground" aria-label="Подробнее">
+                    <button
+                      onClick={() => setDrawerId(i.id)}
+                      className="text-muted-foreground hover:text-foreground"
+                      aria-label="Подробнее"
+                    >
                       <Info className="size-4" />
                     </button>
                   </div>
@@ -53,16 +57,23 @@ function IdeasPage() {
                 </p>
                 <div className="mt-2 flex flex-wrap gap-1">
                   {i.platform_targets.map((p) => (
-                    <span key={p} className="chip">{p}</span>
+                    <span key={p} className="chip">
+                      {p}
+                    </span>
                   ))}
                   {i.tags.map((t) => (
-                    <span key={t} className="chip chip-tool">#{t}</span>
+                    <span key={t} className="chip chip-tool">
+                      #{t}
+                    </span>
                   ))}
                 </div>
                 <div className="grid grid-cols-2 gap-2 mt-3">
                   {i.status !== "accepted" && i.status !== "in_pack" ? (
                     <button
-                      onClick={() => { s.acceptIdea(i.id); toast.success("Идея принята"); }}
+                      onClick={() => {
+                        s.acceptIdea(i.id);
+                        toast.success("Идея принята");
+                      }}
                       className="inline-flex items-center justify-center gap-1 rounded-xl bg-success/20 text-success border border-success/40 px-3 py-2 text-sm font-semibold"
                     >
                       <Check className="size-4" /> Принять
@@ -73,7 +84,10 @@ function IdeasPage() {
                     </span>
                   )}
                   <button
-                    onClick={() => { s.rejectIdea(i.id); toast("Идея отклонена"); }}
+                    onClick={() => {
+                      s.rejectIdea(i.id);
+                      toast("Идея отклонена");
+                    }}
                     className="inline-flex items-center justify-center gap-1 rounded-xl bg-destructive/20 text-destructive border border-destructive/40 px-3 py-2 text-sm font-semibold"
                   >
                     <X className="size-4" /> Отклонить
@@ -114,18 +128,55 @@ function IdeasPage() {
         title={drawer?.topic ?? ""}
         status={drawer?.status ?? ""}
         body={drawer?.angle}
-        refs={drawer ? [
-          { label: "приоритет", value: `${drawer.priority} · score ${drawer.priority_score}` },
-          { label: "source_refs", value: drawer.source_refs.join(", ") || "—" },
-          { label: "platforms", value: drawer.platform_targets.join(", ") },
-          { label: "tags", value: drawer.tags.join(", ") || "—" },
-          { label: "pack", value: s.packs.find((p) => p.idea_id === drawer.id)?.id ?? "—" },
-        ] : []}
-        nextActions={drawer ? [
-          { label: "Принять", onClick: () => { s.acceptIdea(drawer.id); toast.success("Идея принята"); }, variant: "primary", disabled: drawer.status === "accepted" || drawer.status === "in_pack" },
-          { label: "Собрать пакет", onClick: () => { const id = s.buildPackFromIdea(drawer.id); if (id) { toast.success("Пакет готов"); navigate({ to: "/packs" }); } }, variant: "muted", disabled: drawer.status !== "accepted" && drawer.status !== "in_pack" },
-          { label: "Отклонить", onClick: () => { s.rejectIdea(drawer.id); toast("Идея отклонена"); }, variant: "danger" },
-        ] : []}
+        refs={
+          drawer
+            ? [
+                {
+                  label: "приоритет",
+                  value: `${drawer.priority} · score ${drawer.priority_score}`,
+                },
+                { label: "source_refs", value: drawer.source_refs.join(", ") || "—" },
+                { label: "platforms", value: drawer.platform_targets.join(", ") },
+                { label: "tags", value: drawer.tags.join(", ") || "—" },
+                { label: "pack", value: s.packs.find((p) => p.idea_id === drawer.id)?.id ?? "—" },
+              ]
+            : []
+        }
+        nextActions={
+          drawer
+            ? [
+                {
+                  label: "Принять",
+                  onClick: () => {
+                    s.acceptIdea(drawer.id);
+                    toast.success("Идея принята");
+                  },
+                  variant: "primary",
+                  disabled: drawer.status === "accepted" || drawer.status === "in_pack",
+                },
+                {
+                  label: "Собрать пакет",
+                  onClick: () => {
+                    const id = s.buildPackFromIdea(drawer.id);
+                    if (id) {
+                      toast.success("Пакет готов");
+                      navigate({ to: "/packs" });
+                    }
+                  },
+                  variant: "muted",
+                  disabled: drawer.status !== "accepted" && drawer.status !== "in_pack",
+                },
+                {
+                  label: "Отклонить",
+                  onClick: () => {
+                    s.rejectIdea(drawer.id);
+                    toast("Идея отклонена");
+                  },
+                  variant: "danger",
+                },
+              ]
+            : []
+        }
       />
     </>
   );

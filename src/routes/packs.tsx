@@ -59,7 +59,11 @@ function PacksPage() {
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <StatusBadge status={pack.status} />
-                    <button onClick={() => setPackDrawerId(pack.id)} className="text-muted-foreground hover:text-foreground" aria-label="Подробнее">
+                    <button
+                      onClick={() => setPackDrawerId(pack.id)}
+                      className="text-muted-foreground hover:text-foreground"
+                      aria-label="Подробнее"
+                    >
                       <Info className="size-4" />
                     </button>
                   </div>
@@ -82,7 +86,11 @@ function PacksPage() {
                       >
                         <div>
                           <div className="font-semibold text-sm flex items-center gap-1.5">
-                            {open ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                            {open ? (
+                              <ChevronDown className="size-3.5" />
+                            ) : (
+                              <ChevronRight className="size-3.5" />
+                            )}
                             {PLATFORM_LABEL[a.platform] ?? a.platform}
                           </div>
                           <div className="text-[11px] text-muted-foreground">
@@ -91,7 +99,14 @@ function PacksPage() {
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
                           <StatusBadge status={a.status} />
-                          <button onClick={(e) => { e.stopPropagation(); setAssetDrawerId(a.id); }} className="text-muted-foreground hover:text-foreground" aria-label="Подробнее">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setAssetDrawerId(a.id);
+                            }}
+                            className="text-muted-foreground hover:text-foreground"
+                            aria-label="Подробнее"
+                          >
                             <Info className="size-4" />
                           </button>
                         </div>
@@ -104,7 +119,10 @@ function PacksPage() {
                             className="w-full bg-black/40 border border-border rounded-lg p-2.5 text-xs leading-relaxed min-h-[100px] outline-none focus:border-primary"
                           />
                           <button
-                            onClick={() => { s.requestRewriteAsset(a.id); toast(`Создана версия v${a.version + 1}`); }}
+                            onClick={() => {
+                              s.requestRewriteAsset(a.id);
+                              toast(`Создана версия v${a.version + 1}`);
+                            }}
                             className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-warning/20 text-warning border border-warning/40 px-3 py-2 text-xs font-semibold"
                           >
                             <RefreshCw className="size-3.5" /> Переписать (новая версия)
@@ -112,7 +130,9 @@ function PacksPage() {
                           {a.source_refs.length > 0 && (
                             <div className="flex flex-wrap gap-1">
                               {a.source_refs.map((r) => (
-                                <span key={r} className="chip">src: {r}</span>
+                                <span key={r} className="chip">
+                                  src: {r}
+                                </span>
                               ))}
                             </div>
                           )}
@@ -125,7 +145,10 @@ function PacksPage() {
 
               <div className="grid grid-cols-2 gap-2 mt-2">
                 <button
-                  onClick={() => { s.requestRewrite(pack.id); toast("Запрошен rewrite пакета"); }}
+                  onClick={() => {
+                    s.requestRewrite(pack.id);
+                    toast("Запрошен rewrite пакета");
+                  }}
                   className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-warning/20 text-warning border border-warning/40 px-3 py-2.5 text-sm font-semibold"
                 >
                   <RefreshCw className="size-4" /> Переписать
@@ -153,18 +176,57 @@ function PacksPage() {
         id={packDrawer?.id ?? ""}
         title={packDrawer?.title ?? ""}
         status={packDrawer?.status ?? ""}
-        refs={packDrawer ? [
-          { label: "idea_id", value: packDrawer.idea_id },
-          { label: "approved_by", value: packDrawer.approved_by ?? "—" },
-          { label: "approved_at", value: packDrawer.approved_at ? new Date(packDrawer.approved_at).toLocaleString("ru") : "—" },
-          { label: "assets", value: String(s.assets.filter((a) => a.pack_id === packDrawer.id).length) },
-          { label: "checks", value: String(s.reviewChecks.filter((c) => c.pack_id === packDrawer.id).length) },
-        ] : []}
-        nextActions={packDrawer ? [
-          { label: "На проверку", onClick: () => { s.submitPackForReview(packDrawer.id); toast.success("На проверку"); navigate({ to: "/review" }); }, variant: "primary" },
-          { label: "Rewrite", onClick: () => { s.requestRewrite(packDrawer.id); toast("Запрошен rewrite"); }, variant: "warn" },
-          { label: "К публикации", onClick: () => navigate({ to: "/publish" }), variant: "muted", disabled: !s.canPublish(packDrawer.id) },
-        ] : []}
+        refs={
+          packDrawer
+            ? [
+                { label: "idea_id", value: packDrawer.idea_id },
+                { label: "approved_by", value: packDrawer.approved_by ?? "—" },
+                {
+                  label: "approved_at",
+                  value: packDrawer.approved_at
+                    ? new Date(packDrawer.approved_at).toLocaleString("ru")
+                    : "—",
+                },
+                {
+                  label: "assets",
+                  value: String(s.assets.filter((a) => a.pack_id === packDrawer.id).length),
+                },
+                {
+                  label: "checks",
+                  value: String(s.reviewChecks.filter((c) => c.pack_id === packDrawer.id).length),
+                },
+              ]
+            : []
+        }
+        nextActions={
+          packDrawer
+            ? [
+                {
+                  label: "На проверку",
+                  onClick: () => {
+                    s.submitPackForReview(packDrawer.id);
+                    toast.success("На проверку");
+                    navigate({ to: "/review" });
+                  },
+                  variant: "primary",
+                },
+                {
+                  label: "Rewrite",
+                  onClick: () => {
+                    s.requestRewrite(packDrawer.id);
+                    toast("Запрошен rewrite");
+                  },
+                  variant: "warn",
+                },
+                {
+                  label: "К публикации",
+                  onClick: () => navigate({ to: "/publish" }),
+                  variant: "muted",
+                  disabled: !s.canPublish(packDrawer.id),
+                },
+              ]
+            : []
+        }
       />
 
       <DetailDrawer
@@ -175,20 +237,39 @@ function PacksPage() {
         title={assetDrawer ? (PLATFORM_LABEL[assetDrawer.platform] ?? assetDrawer.platform) : ""}
         status={assetDrawer?.status ?? ""}
         body={assetDrawer?.text ?? assetDrawer?.image_prompt ?? assetDrawer?.video_prompt ?? "—"}
-        refs={assetDrawer ? [
-          { label: "pack_id", value: assetDrawer.pack_id },
-          { label: "platform", value: assetDrawer.platform },
-          { label: "format", value: assetDrawer.format },
-          { label: "qc_score", value: String(assetDrawer.qc_score ?? "—") },
-          { label: "source_refs", value: assetDrawer.source_refs.join(", ") || "—" },
-        ] : []}
-        versions={assetDrawer ? Array.from({ length: assetDrawer.version }, (_, i) => ({
-          label: `v${i + 1}`,
-          current: i + 1 === assetDrawer.version,
-        })) : []}
-        nextActions={assetDrawer ? [
-          { label: "Переписать (новая версия)", onClick: () => { s.requestRewriteAsset(assetDrawer.id); toast(`Создана v${assetDrawer.version + 1}`); }, variant: "warn" },
-        ] : []}
+        refs={
+          assetDrawer
+            ? [
+                { label: "pack_id", value: assetDrawer.pack_id },
+                { label: "platform", value: assetDrawer.platform },
+                { label: "format", value: assetDrawer.format },
+                { label: "qc_score", value: String(assetDrawer.qc_score ?? "—") },
+                { label: "source_refs", value: assetDrawer.source_refs.join(", ") || "—" },
+              ]
+            : []
+        }
+        versions={
+          assetDrawer
+            ? Array.from({ length: assetDrawer.version }, (_, i) => ({
+                label: `v${i + 1}`,
+                current: i + 1 === assetDrawer.version,
+              }))
+            : []
+        }
+        nextActions={
+          assetDrawer
+            ? [
+                {
+                  label: "Переписать (новая версия)",
+                  onClick: () => {
+                    s.requestRewriteAsset(assetDrawer.id);
+                    toast(`Создана v${assetDrawer.version + 1}`);
+                  },
+                  variant: "warn",
+                },
+              ]
+            : []
+        }
       />
     </>
   );

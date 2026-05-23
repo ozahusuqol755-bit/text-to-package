@@ -26,13 +26,7 @@ const map: Record<string, { cls: string; label: string }> = {
 export function StatusBadge({
   status,
 }: {
-  status:
-    | SourceStatus
-    | IdeaStatus
-    | PackStatus
-    | AssetStatus
-    | PublishStatus
-    | string;
+  status: SourceStatus | IdeaStatus | PackStatus | AssetStatus | PublishStatus | string;
 }) {
   const m = map[status] ?? { cls: "badge-draft", label: status };
   return <span className={`badge ${m.cls}`}>{m.label}</span>;

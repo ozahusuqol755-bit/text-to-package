@@ -10,7 +10,10 @@ export const Route = createFileRoute("/review")({ component: ReviewPage });
 function ReviewPage() {
   const s = usePipeline();
   const reviewable = s.packs.filter(
-    (p) => p.status === "ready_for_review" || p.status === "approved" || p.status === "rewrite_requested",
+    (p) =>
+      p.status === "ready_for_review" ||
+      p.status === "approved" ||
+      p.status === "rewrite_requested",
   );
 
   return (
@@ -47,7 +50,8 @@ function ReviewPage() {
                 </div>
                 {pack.approved_by && (
                   <div className="text-xs text-success mt-2">
-                    Одобрено: {pack.approved_by} · {pack.approved_at ? new Date(pack.approved_at).toLocaleTimeString("ru") : ""}
+                    Одобрено: {pack.approved_by} ·{" "}
+                    {pack.approved_at ? new Date(pack.approved_at).toLocaleTimeString("ru") : ""}
                   </div>
                 )}
               </div>
@@ -55,7 +59,11 @@ function ReviewPage() {
               <div className="grid grid-cols-3 gap-2">
                 <Stat value={avgQc} label="QC score" />
                 <Stat value={assets.length} label="ассетов" />
-                <Stat value={requiredPending} label="обяз. ещё" tone={requiredPending ? "warn" : "ok"} />
+                <Stat
+                  value={requiredPending}
+                  label="обяз. ещё"
+                  tone={requiredPending ? "warn" : "ok"}
+                />
               </div>
 
               <SectionTitle>Checklist (интерактивный)</SectionTitle>
@@ -67,17 +75,23 @@ function ReviewPage() {
                     disabled={pack.status === "approved"}
                     className="w-full flex items-start gap-2 text-left py-1 disabled:opacity-60"
                   >
-                    <div className={`mt-0.5 size-5 rounded-md grid place-items-center border ${c.passed ? "bg-success/30 text-success border-success/50" : "bg-black/30 border-border text-muted-foreground"}`}>
+                    <div
+                      className={`mt-0.5 size-5 rounded-md grid place-items-center border ${c.passed ? "bg-success/30 text-success border-success/50" : "bg-black/30 border-border text-muted-foreground"}`}
+                    >
                       {c.passed ? <Check className="size-3" /> : null}
                     </div>
                     <div className="text-sm flex-1">
                       {c.label}
-                      {c.required && <span className="ml-1 text-[10px] text-destructive">обяз.</span>}
+                      {c.required && (
+                        <span className="ml-1 text-[10px] text-destructive">обяз.</span>
+                      )}
                     </div>
                   </button>
                 ))}
                 <div className="flex items-start gap-2 pt-2 border-t border-border text-xs">
-                  <div className={`mt-0.5 size-4 rounded-full grid place-items-center ${canApprove ? "bg-success/30 text-success" : "bg-warning/30 text-warning"}`}>
+                  <div
+                    className={`mt-0.5 size-4 rounded-full grid place-items-center ${canApprove ? "bg-success/30 text-success" : "bg-warning/30 text-warning"}`}
+                  >
                     {canApprove ? <Check className="size-3" /> : <Lock className="size-3" />}
                   </div>
                   <div className="text-muted-foreground">
@@ -89,13 +103,19 @@ function ReviewPage() {
               {pack.status !== "approved" ? (
                 <div className="grid grid-cols-3 gap-2">
                   <button
-                    onClick={() => { s.rejectPack(pack.id); toast.error("Пакет отклонён"); }}
+                    onClick={() => {
+                      s.rejectPack(pack.id);
+                      toast.error("Пакет отклонён");
+                    }}
                     className="inline-flex items-center justify-center gap-1 rounded-xl bg-destructive/20 text-destructive border border-destructive/40 px-2 py-2.5 text-sm font-semibold"
                   >
                     <X className="size-4" /> Reject
                   </button>
                   <button
-                    onClick={() => { s.requestRewrite(pack.id); toast("Запрошен rewrite"); }}
+                    onClick={() => {
+                      s.requestRewrite(pack.id);
+                      toast("Запрошен rewrite");
+                    }}
                     className="inline-flex items-center justify-center gap-1 rounded-xl bg-warning/20 text-warning border border-warning/40 px-2 py-2.5 text-sm font-semibold"
                   >
                     <RefreshCw className="size-4" /> Rewrite
@@ -104,11 +124,13 @@ function ReviewPage() {
                     disabled={!canApprove}
                     onClick={() => {
                       s.approvePack(pack.id);
-                      if (s.canApprove(pack.id)) toast.success("Approved. Публикация разблокирована.");
+                      if (s.canApprove(pack.id))
+                        toast.success("Approved. Публикация разблокирована.");
                     }}
                     className="inline-flex items-center justify-center gap-1 rounded-xl bg-success/30 text-success border border-success/50 px-2 py-2.5 text-sm font-semibold disabled:opacity-30 disabled:cursor-not-allowed"
                   >
-                    {canApprove ? <Check className="size-4" /> : <Lock className="size-4" />} Approve
+                    {canApprove ? <Check className="size-4" /> : <Lock className="size-4" />}{" "}
+                    Approve
                   </button>
                 </div>
               ) : (

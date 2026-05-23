@@ -53,9 +53,7 @@ function MetricsPage() {
               <Mini k="saves" v={m.saves} />
             </div>
             {m.errors && <div className="text-xs text-warning mt-2">⚠ {m.errors}</div>}
-            {m.conclusion && (
-              <div className="text-xs text-info mt-2">Вывод: {m.conclusion}</div>
-            )}
+            {m.conclusion && <div className="text-xs text-info mt-2">Вывод: {m.conclusion}</div>}
             {m.signaled ? (
               <div className="mt-3 inline-flex items-center gap-1 rounded-lg bg-success/15 text-success border border-success/30 px-2 py-1.5 text-xs">
                 <Check className="size-3.5" /> сигнал отправлен в анализ

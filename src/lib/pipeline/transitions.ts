@@ -30,7 +30,15 @@ export function uid(prefix: string): string {
 
 // ── platform helpers ─────────────────────────────────────────────────────
 export const ALL_PLATFORMS: Platform[] = [
-  "telegram", "threads", "x", "vk", "instagram", "reels", "tiktok", "image", "video",
+  "telegram",
+  "threads",
+  "x",
+  "vk",
+  "instagram",
+  "reels",
+  "tiktok",
+  "image",
+  "video",
 ];
 
 export function formatForPlatform(p: Platform): AssetFormat {
@@ -41,16 +49,16 @@ export function formatForPlatform(p: Platform): AssetFormat {
   return "post";
 }
 
-export function platformDraft(
-  p: Platform,
-  topic: string,
-  angle: string,
-): Partial<ContentAsset> {
+export function platformDraft(p: Platform, topic: string, angle: string): Partial<ContentAsset> {
   const base = `${topic}. Угол: ${angle}.`;
   if (p === "image")
-    return { image_prompt: `Иллюстрация к теме: ${topic}. Стиль Telegram Mini App, тёмный фон, акцент на approve.` };
+    return {
+      image_prompt: `Иллюстрация к теме: ${topic}. Стиль Telegram Mini App, тёмный фон, акцент на approve.`,
+    };
   if (p === "video")
-    return { video_prompt: `Видео-бриф: 30 сек, динамичный монтаж. Тезис: ${topic}. Финал — кнопка Approve.` };
+    return {
+      video_prompt: `Видео-бриф: 30 сек, динамичный монтаж. Тезис: ${topic}. Финал — кнопка Approve.`,
+    };
   if (p === "telegram")
     return { text: `📡 ${topic}\n\n${angle}\n\nКонтент-завод К/З: AI готовит, редактор одобряет.` };
   if (p === "x") return { text: `${topic} — ${angle}. Approve stays human.` };
@@ -63,11 +71,9 @@ export function platformDraft(
 // ── SOURCES ──────────────────────────────────────────────────────────────
 /** Mock parsing: fills raw_text / summary / hooks / cta / format / risk. */
 export function parseSource(src: Source): Partial<Source> {
-  const mockRisk: Source["source_risk"] =
-    src.source_type === "competitor" ? "medium" : "low";
+  const mockRisk: Source["source_risk"] = src.source_type === "competitor" ? "medium" : "low";
   const mockFormat =
-    src.source_type === "video" ? "video" :
-    src.source_type === "screenshot" ? "image" : "post";
+    src.source_type === "video" ? "video" : src.source_type === "screenshot" ? "image" : "post";
   return {
     status: "parsed",
     raw_text: `[parsed] полный текст по «${src.title}» (~${Math.floor(Math.random() * 4000 + 800)} симв.)`,
@@ -151,12 +157,24 @@ export function buildPackFromIdea(idea: Idea): BuiltPack {
     ...platformDraft(p, idea.topic, idea.angle),
   }));
   const checks: ReviewCheck[] = [
-    { id: uid("rc"), pack_id: packId, label: "Смысл не скопирован",      required: true,  passed: false },
-    { id: uid("rc"), pack_id: packId, label: "Тон бренда подходит",      required: true,  passed: false },
-    { id: uid("rc"), pack_id: packId, label: "Платформы адаптированы",   required: true,  passed: false },
-    { id: uid("rc"), pack_id: packId, label: "Факты проверены",          required: true,  passed: false },
-    { id: uid("rc"), pack_id: packId, label: "CTA на месте",             required: false, passed: false },
-    { id: uid("rc"), pack_id: packId, label: "Риск копирования низкий", required: true,  passed: false },
+    { id: uid("rc"), pack_id: packId, label: "Смысл не скопирован", required: true, passed: false },
+    { id: uid("rc"), pack_id: packId, label: "Тон бренда подходит", required: true, passed: false },
+    {
+      id: uid("rc"),
+      pack_id: packId,
+      label: "Платформы адаптированы",
+      required: true,
+      passed: false,
+    },
+    { id: uid("rc"), pack_id: packId, label: "Факты проверены", required: true, passed: false },
+    { id: uid("rc"), pack_id: packId, label: "CTA на месте", required: false, passed: false },
+    {
+      id: uid("rc"),
+      pack_id: packId,
+      label: "Риск копирования низкий",
+      required: true,
+      passed: false,
+    },
   ];
   return { pack, assets, checks };
 }
@@ -180,7 +198,9 @@ export function bumpAssetVersion(a: ContentAsset): Partial<ContentAsset> {
 export function canApprovePack(checks: ReviewCheck[], packId: string): boolean {
   const ck = checks.filter((c) => c.pack_id === packId);
   if (ck.length === 0) return false;
-  return ck.filter((c) => c.required).every((c) => c.passed);
+  const requiredChecks = ck.filter((c) => c.required);
+  if (requiredChecks.length === 0) return false;
+  return requiredChecks.every((c) => c.passed);
 }
 
 // ── PUBLISH GATE (HARD RULE) ─────────────────────────────────────────────
@@ -191,17 +211,10 @@ export function canApprovePack(checks: ReviewCheck[], packId: string): boolean {
  */
 export function canPublishPack(pack: ContentPack | undefined): boolean {
   if (!pack) return false;
-  return (
-    pack.status === "approved" &&
-    Boolean(pack.approved_by) &&
-    Boolean(pack.approved_at)
-  );
+  return pack.status === "approved" && Boolean(pack.approved_by) && Boolean(pack.approved_at);
 }
 
-export function buildPublishJobs(
-  pack: ContentPack,
-  assets: ContentAsset[],
-): PublishJob[] {
+export function buildPublishJobs(pack: ContentPack, assets: ContentAsset[]): PublishJob[] {
   return assets
     .filter((a) => a.pack_id === pack.id)
     .map((a) => ({

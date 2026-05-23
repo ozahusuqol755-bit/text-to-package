@@ -8,12 +8,7 @@ export type SourceType =
   | "metric"
   | "research";
 
-export type SourceStatus =
-  | "new"
-  | "parsed"
-  | "failed"
-  | "rejected"
-  | "ready_for_analysis";
+export type SourceStatus = "new" | "parsed" | "failed" | "rejected" | "ready_for_analysis";
 
 export interface Source {
   id: string;
@@ -78,12 +73,7 @@ export interface Idea {
   created_at: string;
 }
 
-export type AssetFormat =
-  | "post"
-  | "caption"
-  | "script"
-  | "image_prompt"
-  | "video_brief";
+export type AssetFormat = "post" | "caption" | "script" | "image_prompt" | "video_brief";
 
 export type AssetStatus =
   | "draft"
@@ -135,12 +125,7 @@ export interface ReviewCheck {
   note?: string;
 }
 
-export type PublishStatus =
-  | "approved"
-  | "scheduled"
-  | "publishing"
-  | "published"
-  | "failed";
+export type PublishStatus = "approved" | "scheduled" | "publishing" | "published" | "failed";
 
 export interface PublishJob {
   id: string;

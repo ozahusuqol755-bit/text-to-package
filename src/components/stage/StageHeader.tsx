@@ -21,9 +21,7 @@ export function StageHeader({
         {badge}
       </div>
       {description ? (
-        <p className="text-sm text-muted-foreground/90 mt-2 leading-relaxed">
-          {description}
-        </p>
+        <p className="text-sm text-muted-foreground/90 mt-2 leading-relaxed">{description}</p>
       ) : null}
     </div>
   );
@@ -50,9 +48,5 @@ export function SectionTitle({ children }: { children: ReactNode }) {
 }
 
 export function EmptyState({ children }: { children: ReactNode }) {
-  return (
-    <div className="tg-card text-center text-sm text-muted-foreground py-8">
-      {children}
-    </div>
-  );
+  return <div className="tg-card text-center text-sm text-muted-foreground py-8">{children}</div>;
 }

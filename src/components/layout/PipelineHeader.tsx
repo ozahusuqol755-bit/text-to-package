@@ -18,12 +18,8 @@ export function PipelineHeader() {
     <header className="px-4 pt-4 pb-3 border-b border-border bg-gradient-to-br from-[oklch(0.22_0.05_260)] to-transparent">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-xs text-muted-foreground">
-            Telegram Mini App · конвейер К/З
-          </div>
-          <h1 className="text-2xl font-bold leading-tight mt-0.5">
-            Контент-завод
-          </h1>
+          <div className="text-xs text-muted-foreground">Telegram Mini App · конвейер К/З</div>
+          <h1 className="text-2xl font-bold leading-tight mt-0.5">Контент-завод</h1>
         </div>
         <div className="size-10 rounded-2xl grid place-items-center bg-success/15 text-success border border-success/30">
           <ShieldCheck className="size-5" />

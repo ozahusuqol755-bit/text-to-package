@@ -79,25 +79,19 @@ function Overview() {
   return (
     <>
       <div className="tg-card">
-        <div className="text-xs text-muted-foreground">
-          Внутренний пульт оператора
-        </div>
+        <div className="text-xs text-muted-foreground">Внутренний пульт оператора</div>
         <div className="font-semibold mt-0.5 leading-snug">
           Конвейер: источник → анализ → идея → пакет → approve → выход → метрики
         </div>
         <p className="text-sm text-muted-foreground/90 mt-2">
-          Каждый этап имеет свой статус, действия и логи. Публикация заблокирована
-          до ручного approve редактором.
+          Каждый этап имеет свой статус, действия и логи. Публикация заблокирована до ручного
+          approve редактором.
         </p>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
         {stages.map(({ to, Icon, title, sub, count, hint }) => (
-          <Link
-            key={to}
-            to={to}
-            className="tg-card hover:bg-white/[0.08] transition group"
-          >
+          <Link key={to} to={to} className="tg-card hover:bg-white/[0.08] transition group">
             <div className="flex items-start justify-between">
               <div className="size-9 rounded-xl grid place-items-center bg-primary/15 text-primary border border-primary/30">
                 <Icon className="size-4" />

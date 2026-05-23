@@ -13,7 +13,13 @@ function PublishPage() {
   const s = usePipeline();
   const [jobDrawerId, setJobDrawerId] = useState<string | null>(null);
   const jobDrawer = s.publishJobs.find((j) => j.id === jobDrawerId) ?? null;
-  const visible = s.packs.filter((p) => p.status !== "draft" && p.status !== "ready_for_review" && p.status !== "rejected" && p.status !== "rewrite_requested");
+  const visible = s.packs.filter(
+    (p) =>
+      p.status !== "draft" &&
+      p.status !== "ready_for_review" &&
+      p.status !== "rejected" &&
+      p.status !== "rewrite_requested",
+  );
 
   return (
     <>
@@ -32,9 +38,8 @@ function PublishPage() {
 
       <ToolsRow tools={["n8n", "DOHOO", "Telegram Bot", "Postgres", "Claude Code Channel"]} />
 
-      {s.packs.filter((p) => ["approved", "publishing", "published"].includes(p.status)).length === 0 && (
-        <EmptyState>Нет пакетов, прошедших approve.</EmptyState>
-      )}
+      {s.packs.filter((p) => ["approved", "publishing", "published"].includes(p.status)).length ===
+        0 && <EmptyState>Нет пакетов, прошедших approve.</EmptyState>}
 
       {s.packs.map((pack) => {
         const canPub = s.canPublish(pack.id);
@@ -48,7 +53,9 @@ function PublishPage() {
                 <div className="min-w-0">
                   <div className="text-[11px] text-muted-foreground">pack {pack.id}</div>
                   <div className="font-semibold text-sm">{pack.title}</div>
-                  <div className={`text-xs mt-1 ${pack.approved_by ? "text-success" : "text-warning"}`}>
+                  <div
+                    className={`text-xs mt-1 ${pack.approved_by ? "text-success" : "text-warning"}`}
+                  >
                     approved_by: {pack.approved_by ?? "null"}
                   </div>
                 </div>
@@ -57,17 +64,24 @@ function PublishPage() {
 
               <button
                 disabled={!canPub || pack.status !== "approved"}
-                onClick={() => { s.publishPack(pack.id); toast.success("n8n / DOHOO: публикация запущена"); }}
+                onClick={() => {
+                  s.publishPack(pack.id);
+                  toast.success("n8n / DOHOO: публикация запущена");
+                }}
                 className="mt-3 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 font-semibold text-primary-foreground disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 {canPub && pack.status === "approved" ? (
-                  <><Rocket className="size-4" /> Опубликовать через n8n / DOHOO</>
+                  <>
+                    <Rocket className="size-4" /> Опубликовать через n8n / DOHOO
+                  </>
                 ) : pack.status === "publishing" ? (
                   <>Публикация…</>
                 ) : pack.status === "published" ? (
                   <>Опубликовано</>
                 ) : (
-                  <><Lock className="size-4" /> Заблокировано — нет approve</>
+                  <>
+                    <Lock className="size-4" /> Заблокировано — нет approve
+                  </>
                 )}
               </button>
             </div>
@@ -93,8 +107,14 @@ function PublishPage() {
                         <td className="pr-2">{job?.tool ?? (canPub ? "n8n" : "—")}</td>
                         <td className="pr-2">{job?.attempts ?? "—"}</td>
                         <td className="pr-2">
-                          {job ? <StatusBadge status={job.status} /> : <span className="text-muted-foreground">—</span>}
-                          {job?.error && <div className="text-[10px] text-destructive mt-1">{job.error}</div>}
+                          {job ? (
+                            <StatusBadge status={job.status} />
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                          {job?.error && (
+                            <div className="text-[10px] text-destructive mt-1">{job.error}</div>
+                          )}
                         </td>
                         <td>
                           {job && (
@@ -108,7 +128,10 @@ function PublishPage() {
                           )}
                           {job?.status === "failed" && (
                             <button
-                              onClick={() => { s.retryPublishJob(job.id); toast("Retry…"); }}
+                              onClick={() => {
+                                s.retryPublishJob(job.id);
+                                toast("Retry…");
+                              }}
                               className="inline-flex items-center gap-1 rounded-md bg-warning/20 text-warning border border-warning/40 px-1.5 py-1 text-[10px] font-semibold"
                             >
                               <RefreshCw className="size-3" /> retry
@@ -150,17 +173,42 @@ function PublishPage() {
         title={jobDrawer ? `${jobDrawer.platform} · ${jobDrawer.tool}` : ""}
         status={jobDrawer?.status ?? ""}
         body={jobDrawer?.error ? `Ошибка: ${jobDrawer.error}` : "—"}
-        refs={jobDrawer ? [
-          { label: "pack_id", value: jobDrawer.pack_id },
-          { label: "asset_id", value: jobDrawer.asset_id },
-          { label: "tool", value: jobDrawer.tool },
-          { label: "attempts", value: String(jobDrawer.attempts) },
-          { label: "scheduled_at", value: jobDrawer.scheduled_at ? new Date(jobDrawer.scheduled_at).toLocaleString("ru") : "—" },
-          { label: "published_at", value: jobDrawer.published_at ? new Date(jobDrawer.published_at).toLocaleString("ru") : "—" },
-        ] : []}
-        nextActions={jobDrawer && jobDrawer.status === "failed" ? [
-          { label: "Retry", onClick: () => { s.retryPublishJob(jobDrawer.id); toast("Retry…"); }, variant: "warn" },
-        ] : []}
+        refs={
+          jobDrawer
+            ? [
+                { label: "pack_id", value: jobDrawer.pack_id },
+                { label: "asset_id", value: jobDrawer.asset_id },
+                { label: "tool", value: jobDrawer.tool },
+                { label: "attempts", value: String(jobDrawer.attempts) },
+                {
+                  label: "scheduled_at",
+                  value: jobDrawer.scheduled_at
+                    ? new Date(jobDrawer.scheduled_at).toLocaleString("ru")
+                    : "—",
+                },
+                {
+                  label: "published_at",
+                  value: jobDrawer.published_at
+                    ? new Date(jobDrawer.published_at).toLocaleString("ru")
+                    : "—",
+                },
+              ]
+            : []
+        }
+        nextActions={
+          jobDrawer && jobDrawer.status === "failed"
+            ? [
+                {
+                  label: "Retry",
+                  onClick: () => {
+                    s.retryPublishJob(jobDrawer.id);
+                    toast("Retry…");
+                  },
+                  variant: "warn",
+                },
+              ]
+            : []
+        }
       />
     </>
   );

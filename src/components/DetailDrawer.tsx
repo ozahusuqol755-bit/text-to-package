@@ -60,7 +60,6 @@ export function DetailDrawer({
 }: DetailDrawerProps) {
   const s = usePipeline();
   const [comment, setComment] = useState("");
-  const [comments, setComments] = useState<{ id: string; text: string; ts: string; actor: string }[]>([]);
 
   useEffect(() => {
     if (!open) setComment("");
@@ -68,14 +67,19 @@ export function DetailDrawer({
 
   if (!open) return null;
 
-  const history: LogEvent[] = s.logs.filter((l) => l.entity_id === id || l.job_id === id);
+  const entityLogs: LogEvent[] = s.logs.filter((l) => l.entity_id === id || l.job_id === id);
+  const comments = entityLogs.filter((l) => l.action === "comment");
+  const history = entityLogs.filter((l) => l.action !== "comment");
 
   function addComment() {
     if (!comment.trim()) return;
-    setComments((prev) => [
-      { id: `cm_${Date.now()}`, text: comment.trim(), ts: new Date().toISOString(), actor: "@operator_kz" },
-      ...prev,
-    ]);
+    s.log({
+      stage: "comments",
+      action: "comment",
+      entity_id: id,
+      message: comment.trim(),
+      level: "info",
+    });
     setComment("");
   }
 
@@ -125,11 +129,17 @@ export function DetailDrawer({
               <div className="tg-card-inset text-xs space-y-1.5">
                 {versions.map((v, i) => (
                   <div key={i} className="flex items-center justify-between gap-2">
-                    <span className={v.current ? "text-foreground font-semibold" : "text-muted-foreground"}>
+                    <span
+                      className={
+                        v.current ? "text-foreground font-semibold" : "text-muted-foreground"
+                      }
+                    >
                       {v.label}
                       {v.current ? " · текущая" : ""}
                     </span>
-                    {v.ts ? <span className="text-[10px] text-muted-foreground">{formatTs(v.ts)}</span> : null}
+                    {v.ts ? (
+                      <span className="text-[10px] text-muted-foreground">{formatTs(v.ts)}</span>
+                    ) : null}
                   </div>
                 ))}
               </div>
@@ -168,7 +178,8 @@ export function DetailDrawer({
                     </div>
                     {(h.status_before || h.status_after) && (
                       <div className="text-[10px] text-muted-foreground mt-1">
-                        {h.status_before ?? "—"} → <span className="text-foreground/80">{h.status_after ?? "—"}</span>
+                        {h.status_before ?? "—"} →{" "}
+                        <span className="text-foreground/80">{h.status_after ?? "—"}</span>
                       </div>
                     )}
                     <div className="text-foreground/80 mt-1">{h.message}</div>
@@ -187,10 +198,10 @@ export function DetailDrawer({
               {comments.map((c) => (
                 <div key={c.id} className="tg-card-inset text-xs">
                   <div className="flex justify-between gap-2">
-                    <span className="font-semibold">{c.actor}</span>
+                    <span className="font-semibold">{c.actor ?? "system"}</span>
                     <span className="text-[10px] text-muted-foreground">{formatTs(c.ts)}</span>
                   </div>
-                  <div className="text-foreground/85 mt-1 whitespace-pre-wrap">{c.text}</div>
+                  <div className="text-foreground/85 mt-1 whitespace-pre-wrap">{c.message}</div>
                 </div>
               ))}
               <div className="flex gap-2">

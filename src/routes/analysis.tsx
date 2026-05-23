@@ -16,7 +16,8 @@ function AnalysisPage() {
   const hooks = s.analyses.reduce((acc, a) => acc + (a.hook && a.hook !== "—" ? 1 : 0), 0);
   const themes = s.analyses.filter((a) => a.decision === "to_idea").length;
   const usefulness = Math.round(
-    (s.analyses.reduce((acc, a) => acc + a.priority_score, 0) / Math.max(1, s.analyses.length)) * 10,
+    (s.analyses.reduce((acc, a) => acc + a.priority_score, 0) / Math.max(1, s.analyses.length)) *
+      10,
   );
 
   return (
@@ -51,13 +52,18 @@ function AnalysisPage() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="text-[11px] text-muted-foreground">
-                      источник: {src?.title.slice(0, 32) ?? a.source_id} · refs: {a.source_refs.join(", ")}
+                      источник: {src?.title.slice(0, 32) ?? a.source_id} · refs:{" "}
+                      {a.source_refs.join(", ")}
                     </div>
                     <div className="font-semibold text-sm leading-snug">{a.meaning}</div>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <DecisionBadge d={a.decision} score={a.priority_score} />
-                    <button onClick={() => setDrawerId(a.id)} className="text-muted-foreground hover:text-foreground" aria-label="Подробнее">
+                    <button
+                      onClick={() => setDrawerId(a.id)}
+                      className="text-muted-foreground hover:text-foreground"
+                      aria-label="Подробнее"
+                    >
                       <Info className="size-4" />
                     </button>
                   </div>
@@ -75,7 +81,9 @@ function AnalysisPage() {
                 {a.risk_notes && a.risk_notes !== "—" && (
                   <div className="text-xs text-warning mt-2">⚠ {a.risk_notes}</div>
                 )}
-                {stopped && <div className="text-xs text-destructive mt-2">⛔ risk_status = stopped</div>}
+                {stopped && (
+                  <div className="text-xs text-destructive mt-2">⛔ risk_status = stopped</div>
+                )}
                 {archived && <div className="text-xs text-muted-foreground mt-2">🗄 архив</div>}
 
                 {!stopped && !archived && (
@@ -93,13 +101,19 @@ function AnalysisPage() {
                       <Lightbulb className="size-3.5" /> Создать идею
                     </button>
                     <button
-                      onClick={() => { s.archiveAnalysis(a.id); toast("Анализ в архиве"); }}
+                      onClick={() => {
+                        s.archiveAnalysis(a.id);
+                        toast("Анализ в архиве");
+                      }}
                       className="inline-flex items-center justify-center gap-1 rounded-xl bg-muted text-muted-foreground border border-border px-2 py-2 text-xs font-semibold"
                     >
                       <Archive className="size-3.5" /> В архив
                     </button>
                     <button
-                      onClick={() => { s.stopAnalysis(a.id); toast.error("Анализ остановлен"); }}
+                      onClick={() => {
+                        s.stopAnalysis(a.id);
+                        toast.error("Анализ остановлен");
+                      }}
                       className="inline-flex items-center justify-center gap-1 rounded-xl bg-destructive/20 text-destructive border border-destructive/40 px-2 py-2 text-xs font-semibold"
                     >
                       <Ban className="size-3.5" /> Стоп
@@ -129,22 +143,55 @@ function AnalysisPage() {
         title={drawer?.meaning ?? ""}
         status={drawer?.risk_status ?? "—"}
         body={drawer ? `${drawer.hook} · ${drawer.angle}` : null}
-        refs={drawer ? [
-          { label: "source_id", value: drawer.source_id },
-          { label: "source_refs", value: drawer.source_refs.join(", ") },
-          { label: "pain", value: drawer.pain },
-          { label: "promise", value: drawer.promise },
-          { label: "cta", value: drawer.cta },
-          { label: "platform_fit", value: drawer.platform_fit.join(", ") },
-          { label: "priority_score", value: String(drawer.priority_score) },
-          { label: "decision", value: drawer.decision },
-          { label: "risk_notes", value: drawer.risk_notes },
-        ] : []}
-        nextActions={drawer ? [
-          { label: "Создать идею", onClick: () => { const id = s.createIdeaFromAnalysis(drawer.id); if (id) { toast.success("Идея создана"); navigate({ to: "/ideas" }); } }, variant: "primary", disabled: drawer.risk_status !== "active" },
-          { label: "В архив", onClick: () => { s.archiveAnalysis(drawer.id); toast("В архиве"); }, variant: "muted" },
-          { label: "Стоп", onClick: () => { s.stopAnalysis(drawer.id); toast.error("Остановлен"); }, variant: "danger" },
-        ] : []}
+        refs={
+          drawer
+            ? [
+                { label: "source_id", value: drawer.source_id },
+                { label: "source_refs", value: drawer.source_refs.join(", ") },
+                { label: "pain", value: drawer.pain },
+                { label: "promise", value: drawer.promise },
+                { label: "cta", value: drawer.cta },
+                { label: "platform_fit", value: drawer.platform_fit.join(", ") },
+                { label: "priority_score", value: String(drawer.priority_score) },
+                { label: "decision", value: drawer.decision },
+                { label: "risk_notes", value: drawer.risk_notes },
+              ]
+            : []
+        }
+        nextActions={
+          drawer
+            ? [
+                {
+                  label: "Создать идею",
+                  onClick: () => {
+                    const id = s.createIdeaFromAnalysis(drawer.id);
+                    if (id) {
+                      toast.success("Идея создана");
+                      navigate({ to: "/ideas" });
+                    }
+                  },
+                  variant: "primary",
+                  disabled: drawer.risk_status !== "active",
+                },
+                {
+                  label: "В архив",
+                  onClick: () => {
+                    s.archiveAnalysis(drawer.id);
+                    toast("В архиве");
+                  },
+                  variant: "muted",
+                },
+                {
+                  label: "Стоп",
+                  onClick: () => {
+                    s.stopAnalysis(drawer.id);
+                    toast.error("Остановлен");
+                  },
+                  variant: "danger",
+                },
+              ]
+            : []
+        }
       />
     </>
   );
