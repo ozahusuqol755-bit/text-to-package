@@ -89,7 +89,12 @@ function PacksPage() {
                             {a.format} · v{a.version} · QC {a.qc_score ?? "—"}
                           </div>
                         </div>
-                        <StatusBadge status={a.status} />
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <StatusBadge status={a.status} />
+                          <button onClick={(e) => { e.stopPropagation(); setAssetDrawerId(a.id); }} className="text-muted-foreground hover:text-foreground" aria-label="Подробнее">
+                            <Info className="size-4" />
+                          </button>
+                        </div>
                       </button>
                       {open && (
                         <div className="mt-2 space-y-2">
