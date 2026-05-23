@@ -57,7 +57,12 @@ function PacksPage() {
                     </div>
                     <div className="font-semibold text-sm">{pack.title}</div>
                   </div>
-                  <StatusBadge status={pack.status} />
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <StatusBadge status={pack.status} />
+                    <button onClick={() => setPackDrawerId(pack.id)} className="text-muted-foreground hover:text-foreground" aria-label="Подробнее">
+                      <Info className="size-4" />
+                    </button>
+                  </div>
                 </div>
                 <div className="text-[11px] text-muted-foreground mt-2">
                   {assets.length} ассетов · max v{Math.max(1, ...assets.map((a) => a.version))}
