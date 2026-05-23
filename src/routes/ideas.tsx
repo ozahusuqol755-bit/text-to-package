@@ -41,7 +41,12 @@ function IdeasPage() {
                     </div>
                     <div className="font-semibold text-sm leading-snug">{i.topic}</div>
                   </div>
-                  <StatusBadge status={i.status} />
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <StatusBadge status={i.status} />
+                    <button onClick={() => setDrawerId(i.id)} className="text-muted-foreground hover:text-foreground" aria-label="Подробнее">
+                      <Info className="size-4" />
+                    </button>
+                  </div>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
                   Угол: {i.angle}. Источники: {i.source_refs.join(", ") || "—"}.
