@@ -1,15 +1,19 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { toast } from "sonner";
 import { usePipeline } from "@/store/PipelineStore";
 import { StageHeader, ToolsRow, SectionTitle, EmptyState } from "@/components/stage/StageHeader";
 import { StatusBadge } from "@/components/stage/StatusBadge";
-import { ArrowRight, Check, Package, X } from "lucide-react";
+import { DetailDrawer } from "@/components/DetailDrawer";
+import { ArrowRight, Check, Info, Package, X } from "lucide-react";
 
 export const Route = createFileRoute("/ideas")({ component: IdeasPage });
 
 function IdeasPage() {
   const s = usePipeline();
   const navigate = useNavigate();
+  const [drawerId, setDrawerId] = useState<string | null>(null);
+  const drawer = s.ideas.find((i) => i.id === drawerId) ?? null;
 
   return (
     <>
