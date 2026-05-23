@@ -105,6 +105,28 @@ function IdeasPage() {
       <div className="tg-card-inset text-xs text-muted-foreground text-center">
         Идея → пакет материалов под 9 площадок
       </div>
+
+      <DetailDrawer
+        open={!!drawer}
+        onClose={() => setDrawerId(null)}
+        kind="Идея"
+        id={drawer?.id ?? ""}
+        title={drawer?.topic ?? ""}
+        status={drawer?.status ?? ""}
+        body={drawer?.angle}
+        refs={drawer ? [
+          { label: "приоритет", value: `${drawer.priority} · score ${drawer.priority_score}` },
+          { label: "source_refs", value: drawer.source_refs.join(", ") || "—" },
+          { label: "platforms", value: drawer.platform_targets.join(", ") },
+          { label: "tags", value: drawer.tags.join(", ") || "—" },
+          { label: "pack", value: s.packs.find((p) => p.idea_id === drawer.id)?.id ?? "—" },
+        ] : []}
+        nextActions={drawer ? [
+          { label: "Принять", onClick: () => { s.acceptIdea(drawer.id); toast.success("Идея принята"); }, variant: "primary", disabled: drawer.status === "accepted" || drawer.status === "in_pack" },
+          { label: "Собрать пакет", onClick: () => { const id = s.buildPackFromIdea(drawer.id); if (id) { toast.success("Пакет готов"); navigate({ to: "/packs" }); } }, variant: "muted", disabled: drawer.status !== "accepted" && drawer.status !== "in_pack" },
+          { label: "Отклонить", onClick: () => { s.rejectIdea(drawer.id); toast("Идея отклонена"); }, variant: "danger" },
+        ] : []}
+      />
     </>
   );
 }
