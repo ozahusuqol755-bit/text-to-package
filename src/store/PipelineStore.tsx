@@ -170,8 +170,8 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
           id: uid("log"),
           ts: new Date().toISOString(),
           actor: OPERATOR,
-          result: e.result ?? LEVEL_TO_RESULT[e.level],
           ...e,
+          result: e.result ?? LEVEL_TO_RESULT[e.level],
         },
       });
 
