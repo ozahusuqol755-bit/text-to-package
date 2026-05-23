@@ -162,10 +162,17 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
 
   const value = useMemo<ContextValue>(() => {
-    const log = (e: Omit<LogEvent, "id" | "ts">) =>
+    const LEVEL_TO_RESULT = { success: "success", info: "success", warn: "warning", error: "error" } as const;
+    const log = (e: Omit<LogEvent, "id" | "ts" | "result"> & { result?: LogEvent["result"] }) =>
       dispatch({
         type: "LOG",
-        payload: { id: uid("log"), ts: new Date().toISOString(), actor: OPERATOR, ...e },
+        payload: {
+          id: uid("log"),
+          ts: new Date().toISOString(),
+          actor: OPERATOR,
+          ...e,
+          result: e.result ?? LEVEL_TO_RESULT[e.level],
+        },
       });
 
     // ── SOURCES ─────────────────────────────────────────────────────
@@ -180,19 +187,21 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
         created_at: new Date().toISOString(),
       };
       dispatch({ type: "ADD_SOURCE", payload: src });
-      log({ stage: "sources", action: "add_source", entity_id: src.id, message: `Добавлен источник: ${src.title}`, level: "info" });
+      log({ stage: "sources", action: "add_source", entity_type: "source", entity_id: src.id, status_after: "new", message: `Добавлен источник: ${src.title}`, level: "info" });
     };
 
     const parseSource = (id: string) => {
       const src = state.sources.find((x) => x.id === id);
       if (!src) return;
-      dispatch({ type: "PATCH_SOURCE", id, patch: parseSourcePure(src) });
-      log({ stage: "sources", action: "parse", entity_id: id, message: `Источник ${id} распарсен`, level: "success" });
+      const patch = parseSourcePure(src);
+      dispatch({ type: "PATCH_SOURCE", id, patch });
+      log({ stage: "sources", action: "parse", entity_type: "source", entity_id: id, status_before: src.status, status_after: patch.status ?? "parsed", message: `Источник ${id} распарсен`, level: "success" });
     };
 
     const rejectSource = (id: string) => {
+      const src = state.sources.find((x) => x.id === id);
       dispatch({ type: "PATCH_SOURCE", id, patch: { status: "rejected" } });
-      log({ stage: "sources", action: "reject", entity_id: id, message: `Источник ${id} отклонён`, level: "warn" });
+      log({ stage: "sources", action: "reject", entity_type: "source", entity_id: id, status_before: src?.status, status_after: "rejected", message: `Источник ${id} отклонён`, level: "warn" });
     };
 
     const sendSourceToAnalysis = (id: string) => {
@@ -201,7 +210,7 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
       dispatch({ type: "PATCH_SOURCE", id, patch: { status: "ready_for_analysis" } });
       const analysis = buildAnalysisFromSource(src);
       dispatch({ type: "ADD_ANALYSIS", payload: analysis });
-      log({ stage: "sources", action: "to_analysis", entity_id: id, message: `Источник ${id} → анализ ${analysis.id}`, level: "info" });
+      log({ stage: "sources", action: "to_analysis", entity_type: "source", entity_id: id, status_before: src.status, status_after: "ready_for_analysis", message: `Источник ${id} → анализ ${analysis.id}`, level: "info" });
     };
 
     // ── ANALYSIS ────────────────────────────────────────────────────
@@ -211,28 +220,32 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
       const idea = buildIdeaFromAnalysis(a);
       dispatch({ type: "ADD_IDEA", payload: idea });
       dispatch({ type: "PATCH_ANALYSIS", id: analysisId, patch: { decision: "to_idea" } });
-      log({ stage: "analysis", action: "create_idea", entity_id: analysisId, message: `Из анализа ${analysisId} создана идея ${idea.id}`, level: "success" });
+      log({ stage: "analysis", action: "create_idea", entity_type: "analysis", entity_id: analysisId, status_before: a.decision, status_after: "to_idea", message: `Из анализа ${analysisId} создана идея ${idea.id}`, level: "success" });
       return idea.id;
     };
 
     const archiveAnalysis = (analysisId: string) => {
+      const a = state.analyses.find((x) => x.id === analysisId);
       dispatch({ type: "PATCH_ANALYSIS", id: analysisId, patch: { decision: "archive", risk_status: "archived" } });
-      log({ stage: "analysis", action: "archive", entity_id: analysisId, message: `Анализ ${analysisId} в архив`, level: "info" });
+      log({ stage: "analysis", action: "archive", entity_type: "analysis", entity_id: analysisId, status_before: a?.risk_status, status_after: "archived", message: `Анализ ${analysisId} в архив`, level: "info" });
     };
 
     const stopAnalysis = (analysisId: string) => {
+      const a = state.analyses.find((x) => x.id === analysisId);
       dispatch({ type: "PATCH_ANALYSIS", id: analysisId, patch: { decision: "stop", risk_status: "stopped" } });
-      log({ stage: "analysis", action: "stop", entity_id: analysisId, message: `Анализ ${analysisId} остановлен (risk_status=stopped)`, level: "warn" });
+      log({ stage: "analysis", action: "stop", entity_type: "analysis", entity_id: analysisId, status_before: a?.risk_status, status_after: "stopped", message: `Анализ ${analysisId} остановлен (risk_status=stopped)`, level: "warn" });
     };
 
     // ── IDEAS ───────────────────────────────────────────────────────
     const acceptIdea = (id: string) => {
+      const i = state.ideas.find((x) => x.id === id);
       dispatch({ type: "PATCH_IDEA", id, patch: { status: "accepted" } });
-      log({ stage: "ideas", action: "accept", entity_id: id, message: `Идея ${id} принята`, level: "success" });
+      log({ stage: "ideas", action: "accept", entity_type: "idea", entity_id: id, status_before: i?.status, status_after: "accepted", message: `Идея ${id} принята`, level: "success" });
     };
     const rejectIdea = (id: string) => {
+      const i = state.ideas.find((x) => x.id === id);
       dispatch({ type: "PATCH_IDEA", id, patch: { status: "rejected" } });
-      log({ stage: "ideas", action: "reject", entity_id: id, message: `Идея ${id} отклонена`, level: "warn" });
+      log({ stage: "ideas", action: "reject", entity_type: "idea", entity_id: id, status_before: i?.status, status_after: "rejected", message: `Идея ${id} отклонена`, level: "warn" });
     };
 
     const createContentPackFromIdea: ContextValue["createContentPackFromIdea"] = (ideaId) => {
@@ -240,7 +253,7 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
       if (!idea) return null;
       const existing = state.packs.find((p) => p.idea_id === ideaId);
       if (existing) {
-        log({ stage: "packs", action: "build_pack", entity_id: existing.id, message: `Пакет для идеи ${ideaId} уже существует (${existing.id})`, level: "info" });
+        log({ stage: "packs", action: "build_pack", entity_type: "pack", entity_id: existing.id, status_after: existing.status, message: `Пакет для идеи ${ideaId} уже существует (${existing.id})`, level: "info" });
         return existing.id;
       }
       const { pack, assets, checks } = buildPackFromIdea(idea);
@@ -248,7 +261,7 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
       dispatch({ type: "ADD_ASSETS", payload: assets });
       dispatch({ type: "ADD_CHECKS", payload: checks });
       dispatch({ type: "PATCH_IDEA", id: ideaId, patch: { status: "in_pack" } });
-      log({ stage: "packs", action: "build_pack", entity_id: pack.id, message: `Собран контент-пакет ${pack.id} (${assets.length} ассетов)`, level: "success" });
+      log({ stage: "packs", action: "build_pack", entity_type: "pack", entity_id: pack.id, status_after: pack.status, message: `Собран контент-пакет ${pack.id} (${assets.length} ассетов)`, level: "success" });
       return pack.id;
     };
 
@@ -258,28 +271,32 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
       if (!a) return;
       const patch = bumpAssetVersion(a);
       dispatch({ type: "PATCH_ASSET", id: assetId, patch });
-      log({ stage: "packs", action: "rewrite_asset", entity_id: assetId, message: `Ассет ${assetId} → версия v${patch.version}`, level: "info" });
+      log({ stage: "packs", action: "rewrite_asset", entity_type: "asset", entity_id: assetId, status_before: a.status, status_after: patch.status, message: `Ассет ${assetId} → версия v${patch.version}`, level: "info" });
     };
 
     const sendPackToReview = (packId: string) => {
+      const pack = state.packs.find((p) => p.id === packId);
       dispatch({ type: "PATCH_PACK", id: packId, patch: { status: "ready_for_review" } });
       state.assets.filter((a) => a.pack_id === packId).forEach((a) =>
         dispatch({ type: "PATCH_ASSET", id: a.id, patch: { status: "ready_for_review" as AssetStatus } }),
       );
-      log({ stage: "packs", action: "to_review", entity_id: packId, message: `Пакет ${packId} → на проверку`, level: "info" });
+      log({ stage: "packs", action: "to_review", entity_type: "pack", entity_id: packId, status_before: pack?.status, status_after: "ready_for_review", message: `Пакет ${packId} → на проверку`, level: "info" });
     };
 
     const requestPackRewrite = (packId: string) => {
+      const pack = state.packs.find((p) => p.id === packId);
       dispatch({ type: "PATCH_PACK", id: packId, patch: { status: "rewrite_requested" as PackStatus } });
-      log({ stage: "review", action: "rewrite", entity_id: packId, message: `Запрошен rewrite пакета ${packId}`, level: "warn" });
+      log({ stage: "review", action: "rewrite", entity_type: "pack", entity_id: packId, status_before: pack?.status, status_after: "rewrite_requested", message: `Запрошен rewrite пакета ${packId}`, level: "warn" });
     };
     const rejectPack = (packId: string) => {
+      const pack = state.packs.find((p) => p.id === packId);
       dispatch({ type: "PATCH_PACK", id: packId, patch: { status: "rejected" as PackStatus } });
-      log({ stage: "review", action: "reject", entity_id: packId, message: `Пакет ${packId} отклонён`, level: "error" });
+      log({ stage: "review", action: "reject", entity_type: "pack", entity_id: packId, status_before: pack?.status, status_after: "rejected", message: `Пакет ${packId} отклонён`, level: "error" });
     };
     const approvePack = (packId: string, approver = EDITOR) => {
+      const pack = state.packs.find((p) => p.id === packId);
       if (!canApprove(packId)) {
-        log({ stage: "review", action: "approve_blocked", entity_id: packId, message: `Approve заблокирован: не все обязательные пункты checklist отмечены`, level: "error" });
+        log({ stage: "review", action: "approve_blocked", entity_type: "pack", entity_id: packId, status_before: pack?.status, result: "error", message: `Approve заблокирован: не все обязательные пункты checklist отмечены`, level: "error" });
         return;
       }
       dispatch({
@@ -294,7 +311,7 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
       state.assets.filter((a) => a.pack_id === packId).forEach((a) =>
         dispatch({ type: "PATCH_ASSET", id: a.id, patch: { status: "approved" as AssetStatus } }),
       );
-      log({ stage: "review", action: "approve", entity_id: packId, actor: approver, message: `Пакет ${packId} одобрен (${approver})`, level: "success" });
+      log({ stage: "review", action: "approve", entity_type: "pack", entity_id: packId, status_before: pack?.status, status_after: "approved", actor: approver, message: `Пакет ${packId} одобрен (${approver})`, level: "success" });
     };
     const updateAssetText: ContextValue["updateAssetText"] = (assetId, text) => {
       const a = state.assets.find((x) => x.id === assetId);
@@ -311,7 +328,7 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
       const c = state.reviewChecks.find((x) => x.id === checkId);
       if (!c) return;
       dispatch({ type: "PATCH_CHECK", id: checkId, patch: { passed: !c.passed } });
-      log({ stage: "review", action: "toggle_check", entity_id: checkId, message: `Чек «${c.label}»: ${!c.passed ? "✓" : "✗"}`, level: "info" });
+      log({ stage: "review", action: "toggle_check", entity_type: "check", entity_id: checkId, status_before: c.passed ? "passed" : "pending", status_after: !c.passed ? "passed" : "pending", message: `Чек «${c.label}»: ${!c.passed ? "✓" : "✗"}`, level: "info" });
     };
     const canApprove = (packId: string) => canApprovePack(state.reviewChecks, packId);
 
@@ -326,14 +343,14 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
     const publishPack = (packId: string) => {
       const pack = state.packs.find((p) => p.id === packId);
       if (!canPublish(packId) || !pack) {
-        log({ stage: "publish", action: "publish_blocked", entity_id: packId, message: `Блок: нельзя публиковать пакет ${packId} без approve (status/approved_by/approved_at)`, level: "error" });
+        log({ stage: "publish", action: "publish_blocked", entity_type: "pack", entity_id: packId, status_before: pack?.status, result: "error", message: `Блок: нельзя публиковать пакет ${packId} без approve (status/approved_by/approved_at)`, level: "error" });
         return;
       }
       const assets = state.assets.filter((a) => a.pack_id === packId);
       const jobs = buildPublishJobs(pack, assets);
       dispatch({ type: "ADD_PUBLISH_JOBS", payload: jobs });
       dispatch({ type: "PATCH_PACK", id: packId, patch: { status: "publishing" as PackStatus } });
-      log({ stage: "publish", action: "schedule", entity_id: packId, message: `Запущено ${jobs.length} job через n8n/DOHOO`, level: "info" });
+      log({ stage: "publish", action: "schedule", entity_type: "pack", entity_id: packId, status_before: "approved", status_after: "publishing", message: `Запущено ${jobs.length} job через n8n/DOHOO`, level: "info" });
 
       // simulate publishing (mock — replaced by n8n callback later)
       window.setTimeout(() => {
@@ -341,7 +358,7 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
         jobs.forEach((j, idx) => {
           if (idx === failIdx && jobs.length > 1) {
             dispatch({ type: "PATCH_PUBLISH_JOB", id: j.id, patch: { status: "failed" as PublishStatus, error: "API timeout" } });
-            log({ stage: "publish", action: "fail", entity_id: j.id, message: `Job ${j.id} (${j.platform}) failed: API timeout`, level: "error" });
+            log({ stage: "publish", action: "fail", entity_type: "publish_job", entity_id: j.id, job_id: j.id, status_before: "publishing", status_after: "failed", result: "error", message: `Job ${j.id} (${j.platform}) failed: API timeout`, level: "error" });
           } else {
             dispatch({ type: "PATCH_PUBLISH_JOB", id: j.id, patch: { status: "published" as PublishStatus, published_at: new Date().toISOString() } });
           }
@@ -349,7 +366,7 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
         dispatch({ type: "PATCH_PACK", id: packId, patch: { status: "published" as PackStatus } });
         const metrics = buildMetricsForPack(pack, jobs);
         dispatch({ type: "ADD_METRICS", payload: metrics });
-        log({ stage: "publish", action: "publish", entity_id: packId, message: `Пакет ${packId} опубликован`, level: "success" });
+        log({ stage: "publish", action: "publish", entity_type: "pack", entity_id: packId, status_before: "publishing", status_after: "published", message: `Пакет ${packId} опубликован`, level: "success" });
       }, 1400);
     };
 
@@ -357,10 +374,10 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
       const j = state.publishJobs.find((x) => x.id === jobId);
       if (!j) return;
       dispatch({ type: "PATCH_PUBLISH_JOB", id: jobId, patch: { status: "publishing" as PublishStatus, error: undefined, attempts: j.attempts + 1 } });
-      log({ stage: "publish", action: "retry", entity_id: jobId, message: `Retry job ${jobId} (попытка ${j.attempts + 1})`, level: "info" });
+      log({ stage: "publish", action: "retry", entity_type: "publish_job", entity_id: jobId, job_id: jobId, status_before: j.status, status_after: "publishing", result: "warning", message: `Retry job ${jobId} (попытка ${j.attempts + 1})`, level: "warn" });
       window.setTimeout(() => {
         dispatch({ type: "PATCH_PUBLISH_JOB", id: jobId, patch: { status: "published" as PublishStatus, published_at: new Date().toISOString() } });
-        log({ stage: "publish", action: "publish", entity_id: jobId, message: `Job ${jobId} опубликован после retry`, level: "success" });
+        log({ stage: "publish", action: "publish", entity_type: "publish_job", entity_id: jobId, job_id: jobId, status_before: "publishing", status_after: "published", message: `Job ${jobId} опубликован после retry`, level: "success" });
       }, 1000);
     };
 
@@ -371,7 +388,7 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
       const analysis = buildAnalysisFromMetric(m);
       dispatch({ type: "ADD_ANALYSIS", payload: analysis });
       dispatch({ type: "PATCH_METRIC", id: metricId, patch: { signaled: true } });
-      log({ stage: "metrics", action: "signal_to_analysis", entity_id: metricId, message: `Сигнал из метрик ${metricId} → анализ ${analysis.id}`, level: "success" });
+      log({ stage: "metrics", action: "signal_to_analysis", entity_type: "metric", entity_id: metricId, status_after: "signaled", message: `Сигнал из метрик ${metricId} → анализ ${analysis.id}`, level: "success" });
     };
 
     return {

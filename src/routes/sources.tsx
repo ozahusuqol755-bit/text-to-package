@@ -4,8 +4,9 @@ import { toast } from "sonner";
 import { usePipeline } from "@/store/PipelineStore";
 import { StageHeader, ToolsRow, SectionTitle, EmptyState } from "@/components/stage/StageHeader";
 import { StatusBadge } from "@/components/stage/StatusBadge";
+import { DetailDrawer } from "@/components/DetailDrawer";
 import type { SourceType } from "@/types/pipeline";
-import { ArrowRight, Plus, Play, X, Send } from "lucide-react";
+import { ArrowRight, Plus, Play, X, Send, Info } from "lucide-react";
 
 export const Route = createFileRoute("/sources")({ component: SourcesPage });
 
@@ -28,7 +29,9 @@ function SourcesPage() {
   const [type, setType] = useState<SourceType>("competitor");
   const [tags, setTags] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(s.sources[0]?.id ?? null);
+  const [drawerId, setDrawerId] = useState<string | null>(null);
   const selected = s.sources.find((x) => x.id === selectedId) ?? null;
+  const drawerSrc = s.sources.find((x) => x.id === drawerId) ?? null;
 
   function add() {
     if (!title.trim()) {
@@ -73,10 +76,10 @@ function SourcesPage() {
           {s.sources.map((src) => {
             const active = src.id === selectedId;
             return (
-              <button
+              <div
                 key={src.id}
                 onClick={() => setSelectedId(src.id)}
-                className={`w-full text-left tg-card ${active ? "ring-1 ring-primary/50" : ""}`}
+                className={`tg-card cursor-pointer ${active ? "ring-1 ring-primary/50" : ""}`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
@@ -85,7 +88,16 @@ function SourcesPage() {
                     </div>
                     <div className="font-semibold text-sm leading-snug truncate">{src.title}</div>
                   </div>
-                  <StatusBadge status={src.status} />
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <StatusBadge status={src.status} />
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setDrawerId(src.id); }}
+                      className="text-muted-foreground hover:text-foreground"
+                      aria-label="Подробнее"
+                    >
+                      <Info className="size-4" />
+                    </button>
+                  </div>
                 </div>
                 {src.summary ? (
                   <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{src.summary}</p>
@@ -95,7 +107,7 @@ function SourcesPage() {
                     {src.tags.map((t) => (<span key={t} className="chip">#{t}</span>))}
                   </div>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>
@@ -195,6 +207,29 @@ function SourcesPage() {
           </div>
         </div>
       )}
+
+      <DetailDrawer
+        open={!!drawerSrc}
+        onClose={() => setDrawerId(null)}
+        kind="Источник"
+        id={drawerSrc?.id ?? ""}
+        title={drawerSrc?.title ?? ""}
+        status={drawerSrc?.status ?? ""}
+        body={drawerSrc?.summary || drawerSrc?.raw_text || "—"}
+        refs={drawerSrc ? [
+          { label: "source_type", value: TYPE_LABEL[drawerSrc.source_type] },
+          { label: "url", value: drawerSrc.url ?? "—" },
+          { label: "hooks", value: drawerSrc.hooks?.join(" · ") || "—" },
+          { label: "cta", value: drawerSrc.cta ?? "—" },
+          { label: "tags", value: drawerSrc.tags.join(", ") || "—" },
+          { label: "source_risk", value: drawerSrc.source_risk ?? "—" },
+        ] : []}
+        nextActions={drawerSrc ? [
+          { label: drawerSrc.status === "parsed" ? "Reparse" : "Распарсить", onClick: () => s.parseSource(drawerSrc.id), variant: "muted" },
+          { label: "В анализ", onClick: () => s.sendSourceToAnalysis(drawerSrc.id), variant: "primary" },
+          { label: "Отклонить", onClick: () => s.rejectSource(drawerSrc.id), variant: "danger" },
+        ] : []}
+      />
     </>
   );
 }

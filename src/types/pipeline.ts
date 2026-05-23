@@ -178,13 +178,30 @@ export interface Tool {
   stage: string[];
 }
 
+export type LogResult = "success" | "warning" | "error";
+export type LogEntityType =
+  | "source"
+  | "analysis"
+  | "idea"
+  | "pack"
+  | "asset"
+  | "check"
+  | "publish_job"
+  | "metric";
+
 export interface LogEvent {
   id: string;
   ts: string;
   stage: string;
+  entity_type?: LogEntityType;
   entity_id?: string;
   actor?: string;
   action?: string;
+  status_before?: string;
+  status_after?: string;
+  result?: LogResult;
+  job_id?: string;
   message: string;
+  /** @deprecated kept for back-compat; mirrors `result` */
   level: "info" | "warn" | "error" | "success";
 }

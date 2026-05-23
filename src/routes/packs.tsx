@@ -4,7 +4,8 @@ import { toast } from "sonner";
 import { usePipeline } from "@/store/PipelineStore";
 import { StageHeader, ToolsRow, SectionTitle, EmptyState } from "@/components/stage/StageHeader";
 import { StatusBadge } from "@/components/stage/StatusBadge";
-import { ArrowRight, ChevronDown, ChevronRight, RefreshCw, Send } from "lucide-react";
+import { DetailDrawer } from "@/components/DetailDrawer";
+import { ArrowRight, ChevronDown, ChevronRight, Info, RefreshCw, Send } from "lucide-react";
 
 export const Route = createFileRoute("/packs")({ component: PacksPage });
 
@@ -24,6 +25,10 @@ function PacksPage() {
   const s = usePipeline();
   const navigate = useNavigate();
   const [openId, setOpenId] = useState<string | null>(null);
+  const [packDrawerId, setPackDrawerId] = useState<string | null>(null);
+  const [assetDrawerId, setAssetDrawerId] = useState<string | null>(null);
+  const packDrawer = s.packs.find((p) => p.id === packDrawerId) ?? null;
+  const assetDrawer = s.assets.find((a) => a.id === assetDrawerId) ?? null;
 
   return (
     <>
@@ -52,7 +57,12 @@ function PacksPage() {
                     </div>
                     <div className="font-semibold text-sm">{pack.title}</div>
                   </div>
-                  <StatusBadge status={pack.status} />
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <StatusBadge status={pack.status} />
+                    <button onClick={() => setPackDrawerId(pack.id)} className="text-muted-foreground hover:text-foreground" aria-label="Подробнее">
+                      <Info className="size-4" />
+                    </button>
+                  </div>
                 </div>
                 <div className="text-[11px] text-muted-foreground mt-2">
                   {assets.length} ассетов · max v{Math.max(1, ...assets.map((a) => a.version))}
@@ -79,7 +89,12 @@ function PacksPage() {
                             {a.format} · v{a.version} · QC {a.qc_score ?? "—"}
                           </div>
                         </div>
-                        <StatusBadge status={a.status} />
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <StatusBadge status={a.status} />
+                          <button onClick={(e) => { e.stopPropagation(); setAssetDrawerId(a.id); }} className="text-muted-foreground hover:text-foreground" aria-label="Подробнее">
+                            <Info className="size-4" />
+                          </button>
+                        </div>
                       </button>
                       {open && (
                         <div className="mt-2 space-y-2">
@@ -130,6 +145,51 @@ function PacksPage() {
           );
         })
       )}
+
+      <DetailDrawer
+        open={!!packDrawer}
+        onClose={() => setPackDrawerId(null)}
+        kind="Контент-пакет"
+        id={packDrawer?.id ?? ""}
+        title={packDrawer?.title ?? ""}
+        status={packDrawer?.status ?? ""}
+        refs={packDrawer ? [
+          { label: "idea_id", value: packDrawer.idea_id },
+          { label: "approved_by", value: packDrawer.approved_by ?? "—" },
+          { label: "approved_at", value: packDrawer.approved_at ? new Date(packDrawer.approved_at).toLocaleString("ru") : "—" },
+          { label: "assets", value: String(s.assets.filter((a) => a.pack_id === packDrawer.id).length) },
+          { label: "checks", value: String(s.reviewChecks.filter((c) => c.pack_id === packDrawer.id).length) },
+        ] : []}
+        nextActions={packDrawer ? [
+          { label: "На проверку", onClick: () => { s.submitPackForReview(packDrawer.id); toast.success("На проверку"); navigate({ to: "/review" }); }, variant: "primary" },
+          { label: "Rewrite", onClick: () => { s.requestRewrite(packDrawer.id); toast("Запрошен rewrite"); }, variant: "warn" },
+          { label: "К публикации", onClick: () => navigate({ to: "/publish" }), variant: "muted", disabled: !s.canPublish(packDrawer.id) },
+        ] : []}
+      />
+
+      <DetailDrawer
+        open={!!assetDrawer}
+        onClose={() => setAssetDrawerId(null)}
+        kind="Asset"
+        id={assetDrawer?.id ?? ""}
+        title={assetDrawer ? (PLATFORM_LABEL[assetDrawer.platform] ?? assetDrawer.platform) : ""}
+        status={assetDrawer?.status ?? ""}
+        body={assetDrawer?.text ?? assetDrawer?.image_prompt ?? assetDrawer?.video_prompt ?? "—"}
+        refs={assetDrawer ? [
+          { label: "pack_id", value: assetDrawer.pack_id },
+          { label: "platform", value: assetDrawer.platform },
+          { label: "format", value: assetDrawer.format },
+          { label: "qc_score", value: String(assetDrawer.qc_score ?? "—") },
+          { label: "source_refs", value: assetDrawer.source_refs.join(", ") || "—" },
+        ] : []}
+        versions={assetDrawer ? Array.from({ length: assetDrawer.version }, (_, i) => ({
+          label: `v${i + 1}`,
+          current: i + 1 === assetDrawer.version,
+        })) : []}
+        nextActions={assetDrawer ? [
+          { label: "Переписать (новая версия)", onClick: () => { s.requestRewriteAsset(assetDrawer.id); toast(`Создана v${assetDrawer.version + 1}`); }, variant: "warn" },
+        ] : []}
+      />
     </>
   );
 }

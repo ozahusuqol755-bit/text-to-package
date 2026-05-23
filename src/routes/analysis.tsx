@@ -1,14 +1,18 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { toast } from "sonner";
 import { usePipeline } from "@/store/PipelineStore";
 import { StageHeader, ToolsRow, SectionTitle, EmptyState } from "@/components/stage/StageHeader";
-import { ArrowRight, Lightbulb, Archive, Ban } from "lucide-react";
+import { DetailDrawer } from "@/components/DetailDrawer";
+import { ArrowRight, Archive, Ban, Info, Lightbulb } from "lucide-react";
 
 export const Route = createFileRoute("/analysis")({ component: AnalysisPage });
 
 function AnalysisPage() {
   const s = usePipeline();
   const navigate = useNavigate();
+  const [drawerId, setDrawerId] = useState<string | null>(null);
+  const drawer = s.analyses.find((a) => a.id === drawerId) ?? null;
   const hooks = s.analyses.reduce((acc, a) => acc + (a.hook && a.hook !== "—" ? 1 : 0), 0);
   const themes = s.analyses.filter((a) => a.decision === "to_idea").length;
   const usefulness = Math.round(
@@ -51,7 +55,12 @@ function AnalysisPage() {
                     </div>
                     <div className="font-semibold text-sm leading-snug">{a.meaning}</div>
                   </div>
-                  <DecisionBadge d={a.decision} score={a.priority_score} />
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <DecisionBadge d={a.decision} score={a.priority_score} />
+                    <button onClick={() => setDrawerId(a.id)} className="text-muted-foreground hover:text-foreground" aria-label="Подробнее">
+                      <Info className="size-4" />
+                    </button>
+                  </div>
                 </div>
                 {a.decision !== "stop" && (
                   <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
@@ -111,6 +120,32 @@ function AnalysisPage() {
           Перейти к идеям <ArrowRight className="size-4" />
         </Link>
       </div>
+
+      <DetailDrawer
+        open={!!drawer}
+        onClose={() => setDrawerId(null)}
+        kind="Анализ"
+        id={drawer?.id ?? ""}
+        title={drawer?.meaning ?? ""}
+        status={drawer?.risk_status ?? "—"}
+        body={drawer ? `${drawer.hook} · ${drawer.angle}` : null}
+        refs={drawer ? [
+          { label: "source_id", value: drawer.source_id },
+          { label: "source_refs", value: drawer.source_refs.join(", ") },
+          { label: "pain", value: drawer.pain },
+          { label: "promise", value: drawer.promise },
+          { label: "cta", value: drawer.cta },
+          { label: "platform_fit", value: drawer.platform_fit.join(", ") },
+          { label: "priority_score", value: String(drawer.priority_score) },
+          { label: "decision", value: drawer.decision },
+          { label: "risk_notes", value: drawer.risk_notes },
+        ] : []}
+        nextActions={drawer ? [
+          { label: "Создать идею", onClick: () => { const id = s.createIdeaFromAnalysis(drawer.id); if (id) { toast.success("Идея создана"); navigate({ to: "/ideas" }); } }, variant: "primary", disabled: drawer.risk_status !== "active" },
+          { label: "В архив", onClick: () => { s.archiveAnalysis(drawer.id); toast("В архиве"); }, variant: "muted" },
+          { label: "Стоп", onClick: () => { s.stopAnalysis(drawer.id); toast.error("Остановлен"); }, variant: "danger" },
+        ] : []}
+      />
     </>
   );
 }

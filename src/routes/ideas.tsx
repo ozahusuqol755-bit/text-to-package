@@ -1,15 +1,19 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { toast } from "sonner";
 import { usePipeline } from "@/store/PipelineStore";
 import { StageHeader, ToolsRow, SectionTitle, EmptyState } from "@/components/stage/StageHeader";
 import { StatusBadge } from "@/components/stage/StatusBadge";
-import { ArrowRight, Check, Package, X } from "lucide-react";
+import { DetailDrawer } from "@/components/DetailDrawer";
+import { ArrowRight, Check, Info, Package, X } from "lucide-react";
 
 export const Route = createFileRoute("/ideas")({ component: IdeasPage });
 
 function IdeasPage() {
   const s = usePipeline();
   const navigate = useNavigate();
+  const [drawerId, setDrawerId] = useState<string | null>(null);
+  const drawer = s.ideas.find((i) => i.id === drawerId) ?? null;
 
   return (
     <>
@@ -37,7 +41,12 @@ function IdeasPage() {
                     </div>
                     <div className="font-semibold text-sm leading-snug">{i.topic}</div>
                   </div>
-                  <StatusBadge status={i.status} />
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <StatusBadge status={i.status} />
+                    <button onClick={() => setDrawerId(i.id)} className="text-muted-foreground hover:text-foreground" aria-label="Подробнее">
+                      <Info className="size-4" />
+                    </button>
+                  </div>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
                   Угол: {i.angle}. Источники: {i.source_refs.join(", ") || "—"}.
@@ -96,6 +105,28 @@ function IdeasPage() {
       <div className="tg-card-inset text-xs text-muted-foreground text-center">
         Идея → пакет материалов под 9 площадок
       </div>
+
+      <DetailDrawer
+        open={!!drawer}
+        onClose={() => setDrawerId(null)}
+        kind="Идея"
+        id={drawer?.id ?? ""}
+        title={drawer?.topic ?? ""}
+        status={drawer?.status ?? ""}
+        body={drawer?.angle}
+        refs={drawer ? [
+          { label: "приоритет", value: `${drawer.priority} · score ${drawer.priority_score}` },
+          { label: "source_refs", value: drawer.source_refs.join(", ") || "—" },
+          { label: "platforms", value: drawer.platform_targets.join(", ") },
+          { label: "tags", value: drawer.tags.join(", ") || "—" },
+          { label: "pack", value: s.packs.find((p) => p.idea_id === drawer.id)?.id ?? "—" },
+        ] : []}
+        nextActions={drawer ? [
+          { label: "Принять", onClick: () => { s.acceptIdea(drawer.id); toast.success("Идея принята"); }, variant: "primary", disabled: drawer.status === "accepted" || drawer.status === "in_pack" },
+          { label: "Собрать пакет", onClick: () => { const id = s.buildPackFromIdea(drawer.id); if (id) { toast.success("Пакет готов"); navigate({ to: "/packs" }); } }, variant: "muted", disabled: drawer.status !== "accepted" && drawer.status !== "in_pack" },
+          { label: "Отклонить", onClick: () => { s.rejectIdea(drawer.id); toast("Идея отклонена"); }, variant: "danger" },
+        ] : []}
+      />
     </>
   );
 }

@@ -1,14 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { toast } from "sonner";
 import { usePipeline } from "@/store/PipelineStore";
 import { StageHeader, ToolsRow, SectionTitle, EmptyState } from "@/components/stage/StageHeader";
 import { StatusBadge } from "@/components/stage/StatusBadge";
-import { ArrowRight, Lock, RefreshCw, Rocket } from "lucide-react";
+import { DetailDrawer } from "@/components/DetailDrawer";
+import { ArrowRight, Info, Lock, RefreshCw, Rocket } from "lucide-react";
 
 export const Route = createFileRoute("/publish")({ component: PublishPage });
 
 function PublishPage() {
   const s = usePipeline();
+  const [jobDrawerId, setJobDrawerId] = useState<string | null>(null);
+  const jobDrawer = s.publishJobs.find((j) => j.id === jobDrawerId) ?? null;
   const visible = s.packs.filter((p) => p.status !== "draft" && p.status !== "ready_for_review" && p.status !== "rejected" && p.status !== "rewrite_requested");
 
   return (
@@ -93,6 +97,15 @@ function PublishPage() {
                           {job?.error && <div className="text-[10px] text-destructive mt-1">{job.error}</div>}
                         </td>
                         <td>
+                          {job && (
+                            <button
+                              onClick={() => setJobDrawerId(job.id)}
+                              className="inline-flex items-center gap-1 rounded-md bg-muted text-muted-foreground border border-border px-1.5 py-1 text-[10px] font-semibold mr-1"
+                              aria-label="Подробнее"
+                            >
+                              <Info className="size-3" />
+                            </button>
+                          )}
                           {job?.status === "failed" && (
                             <button
                               onClick={() => { s.retryPublishJob(job.id); toast("Retry…"); }}
@@ -128,6 +141,27 @@ function PublishPage() {
         <div>• Каждый шаг получает job_id, attempts, и логируется</div>
         <div>• failed job можно повторить (retry)</div>
       </div>
+
+      <DetailDrawer
+        open={!!jobDrawer}
+        onClose={() => setJobDrawerId(null)}
+        kind="Publish Job"
+        id={jobDrawer?.id ?? ""}
+        title={jobDrawer ? `${jobDrawer.platform} · ${jobDrawer.tool}` : ""}
+        status={jobDrawer?.status ?? ""}
+        body={jobDrawer?.error ? `Ошибка: ${jobDrawer.error}` : "—"}
+        refs={jobDrawer ? [
+          { label: "pack_id", value: jobDrawer.pack_id },
+          { label: "asset_id", value: jobDrawer.asset_id },
+          { label: "tool", value: jobDrawer.tool },
+          { label: "attempts", value: String(jobDrawer.attempts) },
+          { label: "scheduled_at", value: jobDrawer.scheduled_at ? new Date(jobDrawer.scheduled_at).toLocaleString("ru") : "—" },
+          { label: "published_at", value: jobDrawer.published_at ? new Date(jobDrawer.published_at).toLocaleString("ru") : "—" },
+        ] : []}
+        nextActions={jobDrawer && jobDrawer.status === "failed" ? [
+          { label: "Retry", onClick: () => { s.retryPublishJob(jobDrawer.id); toast("Retry…"); }, variant: "warn" },
+        ] : []}
+      />
     </>
   );
 }
