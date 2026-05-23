@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
 import { usePipeline } from "@/store/PipelineStore";
 import { StageHeader, EmptyState } from "@/components/stage/StageHeader";
 import type { LogResult } from "@/types/pipeline";
@@ -10,7 +11,7 @@ const STAGE_LABEL: Record<string, string> = {
   sources: "Источники",
   analysis: "Анализ",
   ideas: "Идеи",
-  packs: "Пакеты",
+  packs: "Контент-пакеты",
   review: "Проверка",
   publish: "Публикация",
   metrics: "Метрики",
@@ -20,6 +21,18 @@ const RESULT_CLASS: Record<LogResult, string> = {
   success: "bg-success/30 text-success",
   warning: "bg-warning/30 text-warning",
   error: "bg-destructive/30 text-destructive",
+};
+
+const RESULT_LABEL: Record<LogResult, string> = {
+  success: "готово",
+  warning: "внимание",
+  error: "ошибка",
+};
+
+const RESULT_ICON = {
+  success: CheckCircle2,
+  warning: AlertTriangle,
+  error: XCircle,
 };
 
 const LEVEL_TO_RESULT: Record<string, LogResult> = {
@@ -86,9 +99,9 @@ function LogsPage() {
         onChange={setResult}
         options={[
           { k: "all", l: "все" },
-          { k: "success", l: "success" },
-          { k: "warning", l: "warning" },
-          { k: "error", l: "error" },
+          { k: "success", l: "готово" },
+          { k: "warning", l: "внимание" },
+          { k: "error", l: "ошибка" },
         ]}
       />
 
@@ -102,11 +115,22 @@ function LogsPage() {
         <div className="space-y-1.5">
           {filtered.map((log) => {
             const res = log.result ?? LEVEL_TO_RESULT[log.level] ?? "success";
+            const ResultIcon = RESULT_ICON[res];
             return (
-              <div key={log.id} className="tg-card-inset flex gap-2 items-start text-xs">
-                <span className={`badge ${RESULT_CLASS[res]}`}>{res}</span>
+              <div key={log.id} className="tg-card-inset flex gap-2.5 items-start text-xs">
+                <div
+                  className={`mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg ${RESULT_CLASS[res]}`}
+                >
+                  <ResultIcon className="size-3.5" />
+                </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-foreground/90">{log.message}</div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className={`badge ${RESULT_CLASS[res]}`}>{RESULT_LABEL[res]}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {STAGE_LABEL[log.stage] ?? log.stage}
+                    </span>
+                  </div>
+                  <div className="mt-1 text-foreground/90">{log.message}</div>
                   {(log.status_before || log.status_after) && (
                     <div className="text-[10px] text-muted-foreground mt-0.5">
                       <span className="text-muted-foreground">{log.status_before ?? "—"}</span>

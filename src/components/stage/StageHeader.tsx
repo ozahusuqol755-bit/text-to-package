@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Inbox } from "lucide-react";
 
 export function StageHeader({
   step,
@@ -48,5 +49,12 @@ export function SectionTitle({ children }: { children: ReactNode }) {
 }
 
 export function EmptyState({ children }: { children: ReactNode }) {
-  return <div className="tg-card text-center text-sm text-muted-foreground py-8">{children}</div>;
+  return (
+    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/40 px-4 py-10 text-center">
+      <div className="mb-3 grid size-10 place-items-center rounded-lg bg-muted text-muted-foreground">
+        <Inbox className="size-5" />
+      </div>
+      <div className="max-w-sm text-sm text-muted-foreground">{children}</div>
+    </div>
+  );
 }

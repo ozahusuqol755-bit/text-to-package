@@ -81,11 +81,11 @@ function Overview() {
       <div className="tg-card">
         <div className="text-xs text-muted-foreground">Внутренний пульт оператора</div>
         <div className="font-semibold mt-0.5 leading-snug">
-          Конвейер: источник → анализ → идея → пакет → approve → выход → метрики
+          Конвейер: Источники → Анализ → Идеи → Контент-пакеты → Проверка → Публикация → Метрики
         </div>
         <p className="text-sm text-muted-foreground/90 mt-2">
           Каждый этап имеет свой статус, действия и логи. Публикация заблокирована до ручного
-          approve редактором.
+          согласования редактором: status approved + approved_by + approved_at.
         </p>
       </div>
 

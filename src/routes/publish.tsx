@@ -5,7 +5,7 @@ import { usePipeline } from "@/store/PipelineStore";
 import { StageHeader, ToolsRow, SectionTitle, EmptyState } from "@/components/stage/StageHeader";
 import { StatusBadge } from "@/components/stage/StatusBadge";
 import { DetailDrawer } from "@/components/DetailDrawer";
-import { ArrowRight, Info, Lock, RefreshCw, Rocket } from "lucide-react";
+import { ArrowRight, CheckCircle2, Info, Lock, RefreshCw, Rocket, ShieldCheck } from "lucide-react";
 
 export const Route = createFileRoute("/publish")({ component: PublishPage });
 
@@ -24,7 +24,7 @@ function PublishPage() {
   return (
     <>
       <StageHeader
-        step="Этап 6 · Выход"
+        step="Этап 6 · Публикация"
         title="Публикация, расписание и логирование"
         description="После approve запускается n8n / DOHOO: отправить посты, поставить в расписание, записать логи. Каждый job имеет id, attempts и статус."
         badge={
@@ -45,6 +45,11 @@ function PublishPage() {
         const canPub = s.canPublish(pack.id);
         const jobs = s.publishJobs.filter((j) => j.pack_id === pack.id);
         const assets = s.assets.filter((a) => a.pack_id === pack.id);
+        const publishChecks = [
+          { label: 'status === "approved"', passed: pack.status === "approved" },
+          { label: "approved_by", passed: Boolean(pack.approved_by) },
+          { label: "approved_at", passed: Boolean(pack.approved_at) },
+        ];
         if (!["approved", "publishing", "published"].includes(pack.status)) return null;
         return (
           <div key={pack.id} className="space-y-2">
@@ -58,8 +63,36 @@ function PublishPage() {
                   >
                     approved_by: {pack.approved_by ?? "null"}
                   </div>
+                  <div className={`text-xs ${pack.approved_at ? "text-success" : "text-warning"}`}>
+                    approved_at:{" "}
+                    {pack.approved_at ? new Date(pack.approved_at).toLocaleString("ru") : "null"}
+                  </div>
                 </div>
                 <StatusBadge status={pack.status} />
+              </div>
+
+              <div className="mt-3 rounded-xl border border-border bg-black/15 p-2.5">
+                <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
+                  <ShieldCheck className="size-3.5" />
+                  Правило публикации
+                </div>
+                <div className="grid gap-1.5">
+                  {publishChecks.map((check) => (
+                    <div
+                      key={check.label}
+                      className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-[11px] ${
+                        check.passed ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
+                      }`}
+                    >
+                      {check.passed ? (
+                        <CheckCircle2 className="size-3.5 shrink-0" />
+                      ) : (
+                        <Lock className="size-3.5 shrink-0" />
+                      )}
+                      <span>{check.label}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <button
@@ -161,6 +194,7 @@ function PublishPage() {
       <div className="tg-card text-xs space-y-1.5 text-muted-foreground">
         <div>• Публикация запрещена без status === "approved"</div>
         <div>• approved_by обязателен</div>
+        <div>• approved_at обязателен</div>
         <div>• Каждый шаг получает job_id, attempts, и логируется</div>
         <div>• failed job можно повторить (retry)</div>
       </div>

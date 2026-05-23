@@ -19,9 +19,9 @@ const nav = [
   { to: "/ideas", label: "Идеи", Icon: Lightbulb },
   { to: "/packs", label: "Пакеты", Icon: Package },
   { to: "/review", label: "Проверка", Icon: ShieldCheck },
-  { to: "/publish", label: "Выход", Icon: Rocket },
+  { to: "/publish", label: "Публикац.", Icon: Rocket },
   { to: "/metrics", label: "Метрики", Icon: BarChart3 },
-  { to: "/tools", label: "Тулзы", Icon: Wrench },
+  { to: "/tools", label: "Инстр.", Icon: Wrench },
   { to: "/logs", label: "Логи", Icon: ScrollText },
 ] as const;
 

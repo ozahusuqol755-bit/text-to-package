@@ -5,7 +5,18 @@ import { usePipeline } from "@/store/PipelineStore";
 import { StageHeader, ToolsRow, SectionTitle, EmptyState } from "@/components/stage/StageHeader";
 import { StatusBadge } from "@/components/stage/StatusBadge";
 import { DetailDrawer } from "@/components/DetailDrawer";
-import { ArrowRight, ChevronDown, ChevronRight, Info, RefreshCw, Send } from "lucide-react";
+import {
+  ArrowRight,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Clock3,
+  Hash,
+  Info,
+  Lock,
+  RefreshCw,
+  Send,
+} from "lucide-react";
 
 export const Route = createFileRoute("/packs")({ component: PacksPage });
 
@@ -47,15 +58,18 @@ function PacksPage() {
         s.packs.map((pack) => {
           const idea = s.ideas.find((i) => i.id === pack.idea_id);
           const assets = s.assets.filter((a) => a.pack_id === pack.id);
+          const checks = s.reviewChecks.filter((c) => c.pack_id === pack.id);
+          const approvedReady = pack.status === "approved" && pack.approved_by && pack.approved_at;
           return (
             <div key={pack.id} className="space-y-2">
-              <div className="tg-card">
+              <div className="tg-card overflow-hidden">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="text-[11px] text-muted-foreground">
-                      идея: {idea?.topic.slice(0, 36) ?? "—"}
+                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                      <Hash className="size-3" />
+                      <span className="truncate">идея: {idea?.topic.slice(0, 44) ?? "—"}</span>
                     </div>
-                    <div className="font-semibold text-sm">{pack.title}</div>
+                    <div className="mt-1 font-semibold text-sm leading-snug">{pack.title}</div>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <StatusBadge status={pack.status} />
@@ -68,8 +82,61 @@ function PacksPage() {
                     </button>
                   </div>
                 </div>
-                <div className="text-[11px] text-muted-foreground mt-2">
-                  {assets.length} ассетов · max v{Math.max(1, ...assets.map((a) => a.version))}
+
+                <div className="mt-3 grid grid-cols-3 gap-1.5 text-[11px]">
+                  <div className="rounded-lg border border-border bg-black/15 px-2 py-1.5">
+                    <div className="text-muted-foreground">Ассеты</div>
+                    <div className="font-semibold">{assets.length}</div>
+                  </div>
+                  <div className="rounded-lg border border-border bg-black/15 px-2 py-1.5">
+                    <div className="text-muted-foreground">Версия</div>
+                    <div className="font-semibold">
+                      v{Math.max(1, ...assets.map((a) => a.version))}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-border bg-black/15 px-2 py-1.5">
+                    <div className="text-muted-foreground">Чеки</div>
+                    <div className="font-semibold">
+                      {checks.filter((c) => c.passed).length}/{checks.length}
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  className={`mt-3 flex items-start gap-2 rounded-lg border px-2.5 py-2 text-[11px] ${
+                    approvedReady
+                      ? "border-success/30 bg-success/10 text-success"
+                      : "border-warning/30 bg-warning/10 text-warning"
+                  }`}
+                >
+                  {approvedReady ? (
+                    <CheckCircle2 className="mt-0.5 size-3.5 shrink-0" />
+                  ) : (
+                    <Lock className="mt-0.5 size-3.5 shrink-0" />
+                  )}
+                  <div className="min-w-0">
+                    {approvedReady ? (
+                      <>
+                        <div className="font-semibold">Публикация визуально разрешена</div>
+                        <div className="text-muted-foreground">
+                          {pack.approved_by} ·{" "}
+                          {new Date(pack.approved_at ?? "").toLocaleString("ru")}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="font-semibold">Публикация заблокирована</div>
+                        <div className="text-muted-foreground">
+                          нужно: status approved + approved_by + approved_at
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-2 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                  <Clock3 className="size-3" />
+                  <span>{new Date(pack.created_at).toLocaleString("ru")}</span>
                 </div>
               </div>
 
@@ -80,19 +147,19 @@ function PacksPage() {
                   const text = a.text ?? a.image_prompt ?? a.video_prompt ?? "";
                   return (
                     <div key={a.id} className="tg-card-inset">
-                      <button
-                        onClick={() => setOpenId(open ? null : a.id)}
-                        className="w-full flex items-start justify-between gap-2 text-left"
-                      >
+                      <div className="flex items-start justify-between gap-2">
                         <div>
-                          <div className="font-semibold text-sm flex items-center gap-1.5">
+                          <button
+                            onClick={() => setOpenId(open ? null : a.id)}
+                            className="flex items-center gap-1.5 text-left text-sm font-semibold"
+                          >
                             {open ? (
                               <ChevronDown className="size-3.5" />
                             ) : (
                               <ChevronRight className="size-3.5" />
                             )}
                             {PLATFORM_LABEL[a.platform] ?? a.platform}
-                          </div>
+                          </button>
                           <div className="text-[11px] text-muted-foreground">
                             {a.format} · v{a.version} · QC {a.qc_score ?? "—"}
                           </div>
@@ -110,7 +177,7 @@ function PacksPage() {
                             <Info className="size-4" />
                           </button>
                         </div>
-                      </button>
+                      </div>
                       {open && (
                         <div className="mt-2 space-y-2">
                           <textarea
