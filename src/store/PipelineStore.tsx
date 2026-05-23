@@ -271,28 +271,32 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
       if (!a) return;
       const patch = bumpAssetVersion(a);
       dispatch({ type: "PATCH_ASSET", id: assetId, patch });
-      log({ stage: "packs", action: "rewrite_asset", entity_id: assetId, message: `Ассет ${assetId} → версия v${patch.version}`, level: "info" });
+      log({ stage: "packs", action: "rewrite_asset", entity_type: "asset", entity_id: assetId, status_before: a.status, status_after: patch.status, message: `Ассет ${assetId} → версия v${patch.version}`, level: "info" });
     };
 
     const sendPackToReview = (packId: string) => {
+      const pack = state.packs.find((p) => p.id === packId);
       dispatch({ type: "PATCH_PACK", id: packId, patch: { status: "ready_for_review" } });
       state.assets.filter((a) => a.pack_id === packId).forEach((a) =>
         dispatch({ type: "PATCH_ASSET", id: a.id, patch: { status: "ready_for_review" as AssetStatus } }),
       );
-      log({ stage: "packs", action: "to_review", entity_id: packId, message: `Пакет ${packId} → на проверку`, level: "info" });
+      log({ stage: "packs", action: "to_review", entity_type: "pack", entity_id: packId, status_before: pack?.status, status_after: "ready_for_review", message: `Пакет ${packId} → на проверку`, level: "info" });
     };
 
     const requestPackRewrite = (packId: string) => {
+      const pack = state.packs.find((p) => p.id === packId);
       dispatch({ type: "PATCH_PACK", id: packId, patch: { status: "rewrite_requested" as PackStatus } });
-      log({ stage: "review", action: "rewrite", entity_id: packId, message: `Запрошен rewrite пакета ${packId}`, level: "warn" });
+      log({ stage: "review", action: "rewrite", entity_type: "pack", entity_id: packId, status_before: pack?.status, status_after: "rewrite_requested", message: `Запрошен rewrite пакета ${packId}`, level: "warn" });
     };
     const rejectPack = (packId: string) => {
+      const pack = state.packs.find((p) => p.id === packId);
       dispatch({ type: "PATCH_PACK", id: packId, patch: { status: "rejected" as PackStatus } });
-      log({ stage: "review", action: "reject", entity_id: packId, message: `Пакет ${packId} отклонён`, level: "error" });
+      log({ stage: "review", action: "reject", entity_type: "pack", entity_id: packId, status_before: pack?.status, status_after: "rejected", message: `Пакет ${packId} отклонён`, level: "error" });
     };
     const approvePack = (packId: string, approver = EDITOR) => {
+      const pack = state.packs.find((p) => p.id === packId);
       if (!canApprove(packId)) {
-        log({ stage: "review", action: "approve_blocked", entity_id: packId, message: `Approve заблокирован: не все обязательные пункты checklist отмечены`, level: "error" });
+        log({ stage: "review", action: "approve_blocked", entity_type: "pack", entity_id: packId, status_before: pack?.status, result: "error", message: `Approve заблокирован: не все обязательные пункты checklist отмечены`, level: "error" });
         return;
       }
       dispatch({
@@ -307,7 +311,7 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
       state.assets.filter((a) => a.pack_id === packId).forEach((a) =>
         dispatch({ type: "PATCH_ASSET", id: a.id, patch: { status: "approved" as AssetStatus } }),
       );
-      log({ stage: "review", action: "approve", entity_id: packId, actor: approver, message: `Пакет ${packId} одобрен (${approver})`, level: "success" });
+      log({ stage: "review", action: "approve", entity_type: "pack", entity_id: packId, status_before: pack?.status, status_after: "approved", actor: approver, message: `Пакет ${packId} одобрен (${approver})`, level: "success" });
     };
     const updateAssetText: ContextValue["updateAssetText"] = (assetId, text) => {
       const a = state.assets.find((x) => x.id === assetId);
