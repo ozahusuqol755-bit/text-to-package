@@ -145,6 +145,51 @@ function PacksPage() {
           );
         })
       )}
+
+      <DetailDrawer
+        open={!!packDrawer}
+        onClose={() => setPackDrawerId(null)}
+        kind="Контент-пакет"
+        id={packDrawer?.id ?? ""}
+        title={packDrawer?.title ?? ""}
+        status={packDrawer?.status ?? ""}
+        refs={packDrawer ? [
+          { label: "idea_id", value: packDrawer.idea_id },
+          { label: "approved_by", value: packDrawer.approved_by ?? "—" },
+          { label: "approved_at", value: packDrawer.approved_at ? new Date(packDrawer.approved_at).toLocaleString("ru") : "—" },
+          { label: "assets", value: String(s.assets.filter((a) => a.pack_id === packDrawer.id).length) },
+          { label: "checks", value: String(s.reviewChecks.filter((c) => c.pack_id === packDrawer.id).length) },
+        ] : []}
+        nextActions={packDrawer ? [
+          { label: "На проверку", onClick: () => { s.submitPackForReview(packDrawer.id); toast.success("На проверку"); navigate({ to: "/review" }); }, variant: "primary" },
+          { label: "Rewrite", onClick: () => { s.requestRewrite(packDrawer.id); toast("Запрошен rewrite"); }, variant: "warn" },
+          { label: "К публикации", onClick: () => navigate({ to: "/publish" }), variant: "muted", disabled: !s.canPublish(packDrawer.id) },
+        ] : []}
+      />
+
+      <DetailDrawer
+        open={!!assetDrawer}
+        onClose={() => setAssetDrawerId(null)}
+        kind="Asset"
+        id={assetDrawer?.id ?? ""}
+        title={assetDrawer ? (PLATFORM_LABEL[assetDrawer.platform] ?? assetDrawer.platform) : ""}
+        status={assetDrawer?.status ?? ""}
+        body={assetDrawer?.text ?? assetDrawer?.image_prompt ?? assetDrawer?.video_prompt ?? "—"}
+        refs={assetDrawer ? [
+          { label: "pack_id", value: assetDrawer.pack_id },
+          { label: "platform", value: assetDrawer.platform },
+          { label: "format", value: assetDrawer.format },
+          { label: "qc_score", value: String(assetDrawer.qc_score ?? "—") },
+          { label: "source_refs", value: assetDrawer.source_refs.join(", ") || "—" },
+        ] : []}
+        versions={assetDrawer ? Array.from({ length: assetDrawer.version }, (_, i) => ({
+          label: `v${i + 1}`,
+          current: i + 1 === assetDrawer.version,
+        })) : []}
+        nextActions={assetDrawer ? [
+          { label: "Переписать (новая версия)", onClick: () => { s.requestRewriteAsset(assetDrawer.id); toast(`Создана v${assetDrawer.version + 1}`); }, variant: "warn" },
+        ] : []}
+      />
     </>
   );
 }
