@@ -328,7 +328,7 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
       const c = state.reviewChecks.find((x) => x.id === checkId);
       if (!c) return;
       dispatch({ type: "PATCH_CHECK", id: checkId, patch: { passed: !c.passed } });
-      log({ stage: "review", action: "toggle_check", entity_id: checkId, message: `Чек «${c.label}»: ${!c.passed ? "✓" : "✗"}`, level: "info" });
+      log({ stage: "review", action: "toggle_check", entity_type: "check", entity_id: checkId, status_before: c.passed ? "passed" : "pending", status_after: !c.passed ? "passed" : "pending", message: `Чек «${c.label}»: ${!c.passed ? "✓" : "✗"}`, level: "info" });
     };
     const canApprove = (packId: string) => canApprovePack(state.reviewChecks, packId);
 
