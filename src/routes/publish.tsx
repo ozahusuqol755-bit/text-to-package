@@ -141,6 +141,27 @@ function PublishPage() {
         <div>• Каждый шаг получает job_id, attempts, и логируется</div>
         <div>• failed job можно повторить (retry)</div>
       </div>
+
+      <DetailDrawer
+        open={!!jobDrawer}
+        onClose={() => setJobDrawerId(null)}
+        kind="Publish Job"
+        id={jobDrawer?.id ?? ""}
+        title={jobDrawer ? `${jobDrawer.platform} · ${jobDrawer.tool}` : ""}
+        status={jobDrawer?.status ?? ""}
+        body={jobDrawer?.error ? `Ошибка: ${jobDrawer.error}` : "—"}
+        refs={jobDrawer ? [
+          { label: "pack_id", value: jobDrawer.pack_id },
+          { label: "asset_id", value: jobDrawer.asset_id },
+          { label: "tool", value: jobDrawer.tool },
+          { label: "attempts", value: String(jobDrawer.attempts) },
+          { label: "scheduled_at", value: jobDrawer.scheduled_at ? new Date(jobDrawer.scheduled_at).toLocaleString("ru") : "—" },
+          { label: "published_at", value: jobDrawer.published_at ? new Date(jobDrawer.published_at).toLocaleString("ru") : "—" },
+        ] : []}
+        nextActions={jobDrawer && jobDrawer.status === "failed" ? [
+          { label: "Retry", onClick: () => { s.retryPublishJob(jobDrawer.id); toast("Retry…"); }, variant: "warn" },
+        ] : []}
+      />
     </>
   );
 }
