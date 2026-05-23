@@ -187,19 +187,21 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
         created_at: new Date().toISOString(),
       };
       dispatch({ type: "ADD_SOURCE", payload: src });
-      log({ stage: "sources", action: "add_source", entity_id: src.id, message: `Добавлен источник: ${src.title}`, level: "info" });
+      log({ stage: "sources", action: "add_source", entity_type: "source", entity_id: src.id, status_after: "new", message: `Добавлен источник: ${src.title}`, level: "info" });
     };
 
     const parseSource = (id: string) => {
       const src = state.sources.find((x) => x.id === id);
       if (!src) return;
-      dispatch({ type: "PATCH_SOURCE", id, patch: parseSourcePure(src) });
-      log({ stage: "sources", action: "parse", entity_id: id, message: `Источник ${id} распарсен`, level: "success" });
+      const patch = parseSourcePure(src);
+      dispatch({ type: "PATCH_SOURCE", id, patch });
+      log({ stage: "sources", action: "parse", entity_type: "source", entity_id: id, status_before: src.status, status_after: patch.status ?? "parsed", message: `Источник ${id} распарсен`, level: "success" });
     };
 
     const rejectSource = (id: string) => {
+      const src = state.sources.find((x) => x.id === id);
       dispatch({ type: "PATCH_SOURCE", id, patch: { status: "rejected" } });
-      log({ stage: "sources", action: "reject", entity_id: id, message: `Источник ${id} отклонён`, level: "warn" });
+      log({ stage: "sources", action: "reject", entity_type: "source", entity_id: id, status_before: src?.status, status_after: "rejected", message: `Источник ${id} отклонён`, level: "warn" });
     };
 
     const sendSourceToAnalysis = (id: string) => {
@@ -208,7 +210,7 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
       dispatch({ type: "PATCH_SOURCE", id, patch: { status: "ready_for_analysis" } });
       const analysis = buildAnalysisFromSource(src);
       dispatch({ type: "ADD_ANALYSIS", payload: analysis });
-      log({ stage: "sources", action: "to_analysis", entity_id: id, message: `Источник ${id} → анализ ${analysis.id}`, level: "info" });
+      log({ stage: "sources", action: "to_analysis", entity_type: "source", entity_id: id, status_before: src.status, status_after: "ready_for_analysis", message: `Источник ${id} → анализ ${analysis.id}`, level: "info" });
     };
 
     // ── ANALYSIS ────────────────────────────────────────────────────
