@@ -25,6 +25,10 @@ function PacksPage() {
   const s = usePipeline();
   const navigate = useNavigate();
   const [openId, setOpenId] = useState<string | null>(null);
+  const [packDrawerId, setPackDrawerId] = useState<string | null>(null);
+  const [assetDrawerId, setAssetDrawerId] = useState<string | null>(null);
+  const packDrawer = s.packs.find((p) => p.id === packDrawerId) ?? null;
+  const assetDrawer = s.assets.find((a) => a.id === assetDrawerId) ?? null;
 
   return (
     <>
