@@ -220,18 +220,20 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
       const idea = buildIdeaFromAnalysis(a);
       dispatch({ type: "ADD_IDEA", payload: idea });
       dispatch({ type: "PATCH_ANALYSIS", id: analysisId, patch: { decision: "to_idea" } });
-      log({ stage: "analysis", action: "create_idea", entity_id: analysisId, message: `Из анализа ${analysisId} создана идея ${idea.id}`, level: "success" });
+      log({ stage: "analysis", action: "create_idea", entity_type: "analysis", entity_id: analysisId, status_before: a.decision, status_after: "to_idea", message: `Из анализа ${analysisId} создана идея ${idea.id}`, level: "success" });
       return idea.id;
     };
 
     const archiveAnalysis = (analysisId: string) => {
+      const a = state.analyses.find((x) => x.id === analysisId);
       dispatch({ type: "PATCH_ANALYSIS", id: analysisId, patch: { decision: "archive", risk_status: "archived" } });
-      log({ stage: "analysis", action: "archive", entity_id: analysisId, message: `Анализ ${analysisId} в архив`, level: "info" });
+      log({ stage: "analysis", action: "archive", entity_type: "analysis", entity_id: analysisId, status_before: a?.risk_status, status_after: "archived", message: `Анализ ${analysisId} в архив`, level: "info" });
     };
 
     const stopAnalysis = (analysisId: string) => {
+      const a = state.analyses.find((x) => x.id === analysisId);
       dispatch({ type: "PATCH_ANALYSIS", id: analysisId, patch: { decision: "stop", risk_status: "stopped" } });
-      log({ stage: "analysis", action: "stop", entity_id: analysisId, message: `Анализ ${analysisId} остановлен (risk_status=stopped)`, level: "warn" });
+      log({ stage: "analysis", action: "stop", entity_type: "analysis", entity_id: analysisId, status_before: a?.risk_status, status_after: "stopped", message: `Анализ ${analysisId} остановлен (risk_status=stopped)`, level: "warn" });
     };
 
     // ── IDEAS ───────────────────────────────────────────────────────
