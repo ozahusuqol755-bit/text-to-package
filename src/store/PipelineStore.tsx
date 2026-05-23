@@ -343,14 +343,14 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
     const publishPack = (packId: string) => {
       const pack = state.packs.find((p) => p.id === packId);
       if (!canPublish(packId) || !pack) {
-        log({ stage: "publish", action: "publish_blocked", entity_id: packId, message: `Блок: нельзя публиковать пакет ${packId} без approve (status/approved_by/approved_at)`, level: "error" });
+        log({ stage: "publish", action: "publish_blocked", entity_type: "pack", entity_id: packId, status_before: pack?.status, result: "error", message: `Блок: нельзя публиковать пакет ${packId} без approve (status/approved_by/approved_at)`, level: "error" });
         return;
       }
       const assets = state.assets.filter((a) => a.pack_id === packId);
       const jobs = buildPublishJobs(pack, assets);
       dispatch({ type: "ADD_PUBLISH_JOBS", payload: jobs });
       dispatch({ type: "PATCH_PACK", id: packId, patch: { status: "publishing" as PackStatus } });
-      log({ stage: "publish", action: "schedule", entity_id: packId, message: `Запущено ${jobs.length} job через n8n/DOHOO`, level: "info" });
+      log({ stage: "publish", action: "schedule", entity_type: "pack", entity_id: packId, status_before: "approved", status_after: "publishing", message: `Запущено ${jobs.length} job через n8n/DOHOO`, level: "info" });
 
       // simulate publishing (mock — replaced by n8n callback later)
       window.setTimeout(() => {
@@ -358,7 +358,7 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
         jobs.forEach((j, idx) => {
           if (idx === failIdx && jobs.length > 1) {
             dispatch({ type: "PATCH_PUBLISH_JOB", id: j.id, patch: { status: "failed" as PublishStatus, error: "API timeout" } });
-            log({ stage: "publish", action: "fail", entity_id: j.id, message: `Job ${j.id} (${j.platform}) failed: API timeout`, level: "error" });
+            log({ stage: "publish", action: "fail", entity_type: "publish_job", entity_id: j.id, job_id: j.id, status_before: "publishing", status_after: "failed", result: "error", message: `Job ${j.id} (${j.platform}) failed: API timeout`, level: "error" });
           } else {
             dispatch({ type: "PATCH_PUBLISH_JOB", id: j.id, patch: { status: "published" as PublishStatus, published_at: new Date().toISOString() } });
           }
@@ -366,7 +366,7 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
         dispatch({ type: "PATCH_PACK", id: packId, patch: { status: "published" as PackStatus } });
         const metrics = buildMetricsForPack(pack, jobs);
         dispatch({ type: "ADD_METRICS", payload: metrics });
-        log({ stage: "publish", action: "publish", entity_id: packId, message: `Пакет ${packId} опубликован`, level: "success" });
+        log({ stage: "publish", action: "publish", entity_type: "pack", entity_id: packId, status_before: "publishing", status_after: "published", message: `Пакет ${packId} опубликован`, level: "success" });
       }, 1400);
     };
 
@@ -374,10 +374,10 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
       const j = state.publishJobs.find((x) => x.id === jobId);
       if (!j) return;
       dispatch({ type: "PATCH_PUBLISH_JOB", id: jobId, patch: { status: "publishing" as PublishStatus, error: undefined, attempts: j.attempts + 1 } });
-      log({ stage: "publish", action: "retry", entity_id: jobId, message: `Retry job ${jobId} (попытка ${j.attempts + 1})`, level: "info" });
+      log({ stage: "publish", action: "retry", entity_type: "publish_job", entity_id: jobId, job_id: jobId, status_before: j.status, status_after: "publishing", result: "warning", message: `Retry job ${jobId} (попытка ${j.attempts + 1})`, level: "warn" });
       window.setTimeout(() => {
         dispatch({ type: "PATCH_PUBLISH_JOB", id: jobId, patch: { status: "published" as PublishStatus, published_at: new Date().toISOString() } });
-        log({ stage: "publish", action: "publish", entity_id: jobId, message: `Job ${jobId} опубликован после retry`, level: "success" });
+        log({ stage: "publish", action: "publish", entity_type: "publish_job", entity_id: jobId, job_id: jobId, status_before: "publishing", status_after: "published", message: `Job ${jobId} опубликован после retry`, level: "success" });
       }, 1000);
     };
 
@@ -388,7 +388,7 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
       const analysis = buildAnalysisFromMetric(m);
       dispatch({ type: "ADD_ANALYSIS", payload: analysis });
       dispatch({ type: "PATCH_METRIC", id: metricId, patch: { signaled: true } });
-      log({ stage: "metrics", action: "signal_to_analysis", entity_id: metricId, message: `Сигнал из метрик ${metricId} → анализ ${analysis.id}`, level: "success" });
+      log({ stage: "metrics", action: "signal_to_analysis", entity_type: "metric", entity_id: metricId, status_after: "signaled", message: `Сигнал из метрик ${metricId} → анализ ${analysis.id}`, level: "success" });
     };
 
     return {
