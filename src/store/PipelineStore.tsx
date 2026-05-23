@@ -253,7 +253,7 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
       if (!idea) return null;
       const existing = state.packs.find((p) => p.idea_id === ideaId);
       if (existing) {
-        log({ stage: "packs", action: "build_pack", entity_id: existing.id, message: `Пакет для идеи ${ideaId} уже существует (${existing.id})`, level: "info" });
+        log({ stage: "packs", action: "build_pack", entity_type: "pack", entity_id: existing.id, status_after: existing.status, message: `Пакет для идеи ${ideaId} уже существует (${existing.id})`, level: "info" });
         return existing.id;
       }
       const { pack, assets, checks } = buildPackFromIdea(idea);
@@ -261,7 +261,7 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
       dispatch({ type: "ADD_ASSETS", payload: assets });
       dispatch({ type: "ADD_CHECKS", payload: checks });
       dispatch({ type: "PATCH_IDEA", id: ideaId, patch: { status: "in_pack" } });
-      log({ stage: "packs", action: "build_pack", entity_id: pack.id, message: `Собран контент-пакет ${pack.id} (${assets.length} ассетов)`, level: "success" });
+      log({ stage: "packs", action: "build_pack", entity_type: "pack", entity_id: pack.id, status_after: pack.status, message: `Собран контент-пакет ${pack.id} (${assets.length} ассетов)`, level: "success" });
       return pack.id;
     };
 
