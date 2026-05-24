@@ -152,6 +152,11 @@ function LogsPage() {
                     <span className="text-[10px] text-muted-foreground">
                       {STAGE_LABEL[log.stage] ?? log.stage}
                     </span>
+                    {log.action && (
+                      <span className="text-[10px] font-medium text-foreground/80">
+                        · {ACTION_LABEL[log.action] ?? log.action}
+                      </span>
+                    )}
                   </div>
                   <div className="mt-1 text-foreground/90">{log.message}</div>
                   {(log.status_before || log.status_after) && (
@@ -162,10 +167,8 @@ function LogsPage() {
                     </div>
                   )}
                   <div className="text-[10px] text-muted-foreground mt-0.5">
-                    {STAGE_LABEL[log.stage] ?? log.stage}
-                    {log.action ? ` · ${log.action}` : ""}
-                    {log.actor ? ` · ${log.actor}` : ""}
-                    {log.entity_type ? ` · ${log.entity_type}` : ""}
+                    {log.actor ? `${log.actor} · ` : ""}
+                    {log.entity_type}
                     {log.entity_id ? `:${log.entity_id}` : ""}
                     {log.job_id ? ` · job ${log.job_id}` : ""}
                     {" · "}
