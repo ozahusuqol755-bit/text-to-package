@@ -34,6 +34,8 @@ been applied, they return `database_schema_missing`.
 - `GET /health`
 - `GET /api/sources`
 - `POST /api/sources`
+- `GET /api/analyses`
+- `POST /api/sources/:id/to-analysis`
 - `GET /api/content-packs`
 - `GET /api/logs`
 
@@ -50,6 +52,17 @@ curl -sS -X POST http://127.0.0.1:4000/api/sources \
   }'
 
 curl -sS http://127.0.0.1:4000/api/sources
+curl -sS http://127.0.0.1:4000/api/logs
+```
+
+## Source To Analysis Flow
+
+```bash
+SOURCE_ID="<created-source-id>"
+
+curl -sS -X POST "http://127.0.0.1:4000/api/sources/${SOURCE_ID}/to-analysis"
+
+curl -sS http://127.0.0.1:4000/api/analyses
 curl -sS http://127.0.0.1:4000/api/logs
 ```
 

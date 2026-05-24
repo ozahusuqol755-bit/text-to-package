@@ -1,3 +1,4 @@
+import type { PoolClient } from "pg";
 import { query } from "../db.js";
 
 export type AuditResult = "success" | "warning" | "error";
@@ -18,8 +19,10 @@ export interface AuditLogInput {
   metadata?: Record<string, unknown>;
 }
 
-export async function writeAuditLog(input: AuditLogInput): Promise<void> {
-  await query(
+export async function writeAuditLog(input: AuditLogInput, client?: PoolClient): Promise<void> {
+  const execute = client ? client.query.bind(client) : query;
+
+  await execute(
     `
       insert into pipeline_logs (
         stage,
