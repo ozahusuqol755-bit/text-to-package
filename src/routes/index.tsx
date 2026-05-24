@@ -106,7 +106,7 @@ function Overview() {
       to: "/analysis",
       Icon: Brain,
       label: "Анализ",
-      value: primaryAnalysis ? `${primaryAnalysis.patterns.length} паттернов` : "—",
+      value: primaryAnalysis ? primaryAnalysis.meaning.slice(0, 38) : "—",
       state: primaryAnalysis ? "done" : "pending",
     },
     {
