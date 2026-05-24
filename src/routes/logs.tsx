@@ -35,6 +35,29 @@ const RESULT_ICON = {
   error: XCircle,
 };
 
+const ACTION_LABEL: Record<string, string> = {
+  add_source: "источник добавлен",
+  parse: "распарсен",
+  reject: "отклонено",
+  to_analysis: "→ в анализ",
+  decide: "решение принято",
+  create_idea: "идея создана",
+  archive: "в архив",
+  stop: "остановлено",
+  accept: "принято",
+  build_pack: "пакет собран",
+  build: "пакет собран",
+  rewrite_asset: "ассет переписан",
+  rewrite: "отправлено на доработку",
+  to_review: "→ на проверку",
+  toggle_check: "чек переключён",
+  approve: "согласовано",
+  publish: "публикация запущена",
+  retry: "повтор публикации",
+  fail: "ошибка публикации",
+  signal: "сигнал в анализ",
+};
+
 const LEVEL_TO_RESULT: Record<string, LogResult> = {
   success: "success",
   info: "success",
