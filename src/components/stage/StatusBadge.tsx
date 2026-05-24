@@ -7,20 +7,27 @@ import type {
 } from "@/types/pipeline";
 
 const map: Record<string, { cls: string; label: string }> = {
-  new: { cls: "badge-new", label: "новый" },
-  parsed: { cls: "badge-parsed", label: "распарсен" },
-  failed: { cls: "badge-error", label: "ошибка" },
-  rejected: { cls: "badge-error", label: "отклонён" },
-  ready_for_analysis: { cls: "badge-info", label: "в анализ" },
-  draft: { cls: "badge-draft", label: "черновик" },
-  accepted: { cls: "badge-success", label: "принята" },
-  in_pack: { cls: "badge-info", label: "в пакете" },
-  rewrite_requested: { cls: "badge-warn", label: "на доработку" },
-  ready_for_review: { cls: "badge-warn", label: "на проверку" },
-  approved: { cls: "badge-success", label: "согласовано" },
-  scheduled: { cls: "badge-info", label: "в расписании" },
-  publishing: { cls: "badge-info", label: "публикуется" },
-  published: { cls: "badge-success", label: "опубликовано" },
+  // sources
+  new: { cls: "badge-new", label: "Новый" },
+  parsed: { cls: "badge-parsed", label: "Распарсен" },
+  ready_for_analysis: { cls: "badge-info", label: "В анализ" },
+  // analyses / ideas
+  draft: { cls: "badge-draft", label: "Черновик" },
+  accepted: { cls: "badge-success", label: "Принята" },
+  in_pack: { cls: "badge-info", label: "В пакете" },
+  // packs
+  ready_for_review: { cls: "badge-warn", label: "На проверке" },
+  rewrite_requested: { cls: "badge-warn", label: "На доработку" },
+  approved: { cls: "badge-success", label: "Согласован" },
+  rejected: { cls: "badge-error", label: "Отклонён" },
+  // publish
+  scheduled: { cls: "badge-info", label: "В расписании" },
+  publishing: { cls: "badge-info", label: "Публикуется" },
+  published: { cls: "badge-success", label: "Опубликовано" },
+  failed: { cls: "badge-error", label: "Ошибка публикации" },
+  // pseudo
+  blocked: { cls: "badge-error", label: "Заблокировано" },
+  ready_to_publish: { cls: "badge-success", label: "Готово к публикации" },
 };
 
 export function StatusBadge({

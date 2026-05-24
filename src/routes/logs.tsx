@@ -35,6 +35,29 @@ const RESULT_ICON = {
   error: XCircle,
 };
 
+const ACTION_LABEL: Record<string, string> = {
+  add_source: "источник добавлен",
+  parse: "распарсен",
+  reject: "отклонено",
+  to_analysis: "→ в анализ",
+  decide: "решение принято",
+  create_idea: "идея создана",
+  archive: "в архив",
+  stop: "остановлено",
+  accept: "принято",
+  build_pack: "пакет собран",
+  build: "пакет собран",
+  rewrite_asset: "ассет переписан",
+  rewrite: "отправлено на доработку",
+  to_review: "→ на проверку",
+  toggle_check: "чек переключён",
+  approve: "согласовано",
+  publish: "публикация запущена",
+  retry: "повтор публикации",
+  fail: "ошибка публикации",
+  signal: "сигнал в анализ",
+};
+
 const LEVEL_TO_RESULT: Record<string, LogResult> = {
   success: "success",
   info: "success",
@@ -129,6 +152,11 @@ function LogsPage() {
                     <span className="text-[10px] text-muted-foreground">
                       {STAGE_LABEL[log.stage] ?? log.stage}
                     </span>
+                    {log.action && (
+                      <span className="text-[10px] font-medium text-foreground/80">
+                        · {ACTION_LABEL[log.action] ?? log.action}
+                      </span>
+                    )}
                   </div>
                   <div className="mt-1 text-foreground/90">{log.message}</div>
                   {(log.status_before || log.status_after) && (
@@ -139,10 +167,8 @@ function LogsPage() {
                     </div>
                   )}
                   <div className="text-[10px] text-muted-foreground mt-0.5">
-                    {STAGE_LABEL[log.stage] ?? log.stage}
-                    {log.action ? ` · ${log.action}` : ""}
-                    {log.actor ? ` · ${log.actor}` : ""}
-                    {log.entity_type ? ` · ${log.entity_type}` : ""}
+                    {log.actor ? `${log.actor} · ` : ""}
+                    {log.entity_type}
                     {log.entity_id ? `:${log.entity_id}` : ""}
                     {log.job_id ? ` · job ${log.job_id}` : ""}
                     {" · "}
