@@ -150,7 +150,8 @@ create table review_checks (
 
 -- Approve guard is intentionally enforced in the API transaction:
 -- the pack must have at least one review_checks row, at least one required row,
--- and every required row must have passed = true.
+-- and every required row except human_review_required must have passed = true.
+-- The approve action itself marks human_review_required as passed.
 
 create table publish_jobs (
   id uuid primary key default gen_random_uuid(),

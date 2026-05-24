@@ -41,6 +41,10 @@ been applied, they return `database_schema_missing`.
 - `GET /api/content-packs`
 - `POST /api/ideas/:id/build-pack`
 - `GET /api/content-assets`
+- `GET /api/review-checks`
+- `POST /api/content-packs/:id/send-to-review`
+- `POST /api/content-packs/:id/approve`
+- `POST /api/content-packs/:id/reject`
 - `GET /api/logs`
 
 ## Source Write Flow
@@ -90,6 +94,24 @@ curl -sS -X POST "http://127.0.0.1:4000/api/ideas/${IDEA_ID}/build-pack"
 
 curl -sS http://127.0.0.1:4000/api/content-packs
 curl -sS http://127.0.0.1:4000/api/content-assets
+curl -sS http://127.0.0.1:4000/api/logs
+```
+
+## Content Pack Review Flow
+
+```bash
+PACK_ID="<created-pack-id>"
+
+curl -sS -X POST "http://127.0.0.1:4000/api/content-packs/${PACK_ID}/send-to-review"
+curl -sS http://127.0.0.1:4000/api/review-checks
+
+curl -sS -X POST "http://127.0.0.1:4000/api/content-packs/${PACK_ID}/approve"
+
+curl -sS -X POST "http://127.0.0.1:4000/api/content-packs/${PACK_ID}/reject" \
+  -H 'content-type: application/json' \
+  -d '{"reason":"Needs rewrite before publishing."}'
+
+curl -sS http://127.0.0.1:4000/api/content-packs
 curl -sS http://127.0.0.1:4000/api/logs
 ```
 

@@ -1,7 +1,9 @@
 import type { FastifyInstance } from "fastify";
+import type { PoolClient } from "pg";
 import { z } from "zod";
 import { query, transaction } from "../db.js";
 import { writeAuditLog } from "../lib/auditLog.js";
+import { canApprovePack } from "../lib/guards.js";
 
 interface IdeaRow {
   id: string;
@@ -67,6 +69,14 @@ interface AssetInput {
 
 const IdeaIdParamsSchema = z.object({
   id: z.string().uuid(),
+});
+
+const PackIdParamsSchema = z.object({
+  id: z.string().uuid(),
+});
+
+const RejectPackSchema = z.object({
+  reason: z.string().trim().min(1).optional(),
 });
 
 function packColumns(): string {
@@ -178,6 +188,110 @@ function buildAssets(idea: IdeaRow): AssetInput[] {
   ];
 }
 
+async function getReviewFacts(client: PoolClient, packId: string) {
+  const result = await client.query<{
+    asset_count: number;
+    assets_with_refs: number;
+  }>(
+    `
+      select
+        count(*)::int as asset_count,
+        coalesce(
+          sum(case when jsonb_array_length(source_refs) > 0 then 1 else 0 end),
+          0
+        )::int as assets_with_refs
+      from content_assets
+      where pack_id = $1
+    `,
+    [packId],
+  );
+
+  return result.rows[0] ?? { asset_count: 0, assets_with_refs: 0 };
+}
+
+async function ensureReviewChecks(client: PoolClient, packId: string): Promise<ReviewCheckRow[]> {
+  const facts = await getReviewFacts(client, packId);
+  const checksInput = [
+    {
+      label: "source_refs_present",
+      required: true,
+      passed: facts.assets_with_refs > 0,
+      note: "Content pack keeps source references attached.",
+    },
+    {
+      label: "platform_versions_present",
+      required: true,
+      passed: facts.asset_count >= 4,
+      note: "Telegram, X/Threads, VK, and Reels/TikTok drafts are present.",
+    },
+    {
+      label: "publish_gate_ready",
+      required: false,
+      passed: false,
+      note: "Publish remains blocked until status approved, approved_by, and approved_at are set.",
+    },
+    {
+      label: "human_review_required",
+      required: true,
+      passed: false,
+      note: "Operator review must pass before approval.",
+    },
+  ];
+
+  const existingResult = await client.query<{ label: string }>(
+    `
+      select label
+      from review_checks
+      where pack_id = $1
+    `,
+    [packId],
+  );
+  const existingLabels = new Set(existingResult.rows.map((row) => row.label));
+
+  for (const check of checksInput) {
+    if (existingLabels.has(check.label)) {
+      await client.query(
+        `
+          update review_checks
+          set
+            required = $3,
+            passed = $4,
+            note = $5
+          where pack_id = $1 and label = $2
+        `,
+        [packId, check.label, check.required, check.passed, check.note],
+      );
+      continue;
+    }
+
+    await client.query(
+      `
+        insert into review_checks (
+          pack_id,
+          label,
+          required,
+          passed,
+          note
+        )
+        values ($1, $2, $3, $4, $5)
+      `,
+      [packId, check.label, check.required, check.passed, check.note],
+    );
+  }
+
+  const checksResult = await client.query<ReviewCheckRow>(
+    `
+      select ${checkColumns()}
+      from review_checks
+      where pack_id = $1
+      order by created_at asc
+    `,
+    [packId],
+  );
+
+  return checksResult.rows;
+}
+
 export async function packRoutes(app: FastifyInstance): Promise<void> {
   app.get("/api/content-packs", async () => {
     const result = await query<ContentPackRow>(
@@ -196,6 +310,18 @@ export async function packRoutes(app: FastifyInstance): Promise<void> {
       `
         select ${assetColumns()}
         from content_assets
+        order by created_at desc
+      `,
+    );
+
+    return { data: result.rows };
+  });
+
+  app.get("/api/review-checks", async () => {
+    const result = await query<ReviewCheckRow>(
+      `
+        select ${checkColumns()}
+        from review_checks
         order by created_at desc
       `,
     );
@@ -386,5 +512,274 @@ export async function packRoutes(app: FastifyInstance): Promise<void> {
     }
 
     return reply.status(201).send({ data: result });
+  });
+
+  app.post("/api/content-packs/:id/send-to-review", async (request, reply) => {
+    const parsedParams = PackIdParamsSchema.safeParse(request.params);
+
+    if (!parsedParams.success) {
+      return reply.status(400).send({
+        error: "validation_error",
+        issues: parsedParams.error.issues,
+      });
+    }
+
+    const actor = request.actor?.username ?? request.actor?.id;
+    const result = await transaction(async (client) => {
+      const packResult = await client.query<ContentPackRow>(
+        `
+          select ${packColumns()}
+          from content_packs
+          where id = $1
+          for update
+        `,
+        [parsedParams.data.id],
+      );
+      const pack = packResult.rows[0];
+
+      if (!pack) {
+        return null;
+      }
+
+      const checks = await ensureReviewChecks(client, pack.id);
+      const updatedPackResult = await client.query<ContentPackRow>(
+        `
+          update content_packs
+          set status = 'ready_for_review'
+          where id = $1
+          returning ${packColumns()}
+        `,
+        [pack.id],
+      );
+      const updatedPack = updatedPackResult.rows[0];
+
+      if (!updatedPack) {
+        throw new Error("Content pack update did not return a row.");
+      }
+
+      await writeAuditLog(
+        {
+          stage: "review",
+          entityType: "content_pack",
+          entityId: updatedPack.id,
+          ...(actor ? { actor } : {}),
+          action: "send_to_review",
+          statusBefore: pack.status,
+          statusAfter: updatedPack.status,
+          result: "success",
+          message: "Content pack sent to review",
+          level: "success",
+        },
+        client,
+      );
+
+      return { pack: updatedPack, review_checks: checks };
+    });
+
+    if (!result) {
+      return reply.status(404).send({
+        error: "not_found",
+        message: "Content pack not found.",
+      });
+    }
+
+    return reply.status(200).send({ data: result });
+  });
+
+  app.post("/api/content-packs/:id/approve", async (request, reply) => {
+    const parsedParams = PackIdParamsSchema.safeParse(request.params);
+
+    if (!parsedParams.success) {
+      return reply.status(400).send({
+        error: "validation_error",
+        issues: parsedParams.error.issues,
+      });
+    }
+
+    const actor = request.actor?.username ?? request.actor?.id ?? "operator_kz";
+    const result = await transaction(async (client) => {
+      const packResult = await client.query<ContentPackRow>(
+        `
+          select ${packColumns()}
+          from content_packs
+          where id = $1
+          for update
+        `,
+        [parsedParams.data.id],
+      );
+      const pack = packResult.rows[0];
+
+      if (!pack) {
+        return null;
+      }
+
+      const checks = await ensureReviewChecks(client, pack.id);
+
+      if (!canApprovePack(checks)) {
+        const failedChecks = checks
+          .filter(
+            (check) => check.required && check.label !== "human_review_required" && !check.passed,
+          )
+          .map((check) => check.label);
+
+        return {
+          gateFailed: true as const,
+          failed_checks: failedChecks,
+        };
+      }
+
+      await client.query(
+        `
+          update review_checks
+          set
+            passed = true,
+            note = 'Operator approval completed human review.'
+          where pack_id = $1 and label = 'human_review_required'
+        `,
+        [pack.id],
+      );
+
+      const updatedPackResult = await client.query<ContentPackRow>(
+        `
+          update content_packs
+          set
+            status = 'approved',
+            approved_by = $2,
+            approved_at = now()
+          where id = $1
+          returning ${packColumns()}
+        `,
+        [pack.id, actor],
+      );
+      const updatedPack = updatedPackResult.rows[0];
+
+      if (!updatedPack) {
+        throw new Error("Content pack approval did not return a row.");
+      }
+
+      const updatedChecksResult = await client.query<ReviewCheckRow>(
+        `
+          select ${checkColumns()}
+          from review_checks
+          where pack_id = $1
+          order by created_at asc
+        `,
+        [pack.id],
+      );
+
+      await writeAuditLog(
+        {
+          stage: "review",
+          entityType: "content_pack",
+          entityId: updatedPack.id,
+          actor,
+          action: "approve_content_pack",
+          statusBefore: pack.status,
+          statusAfter: updatedPack.status,
+          result: "success",
+          message: "Content pack approved",
+          level: "success",
+        },
+        client,
+      );
+
+      return { pack: updatedPack, review_checks: updatedChecksResult.rows };
+    });
+
+    if (!result) {
+      return reply.status(404).send({
+        error: "not_found",
+        message: "Content pack not found.",
+      });
+    }
+
+    if ("gateFailed" in result) {
+      return reply.status(400).send({
+        error: "approve_gate_failed",
+        message: "Required review checks must pass before approval.",
+        failed_checks: result.failed_checks,
+      });
+    }
+
+    return reply.status(200).send({ data: result });
+  });
+
+  app.post("/api/content-packs/:id/reject", async (request, reply) => {
+    const parsedParams = PackIdParamsSchema.safeParse(request.params);
+    const parsedBody = RejectPackSchema.safeParse(request.body ?? {});
+
+    if (!parsedParams.success || !parsedBody.success) {
+      return reply.status(400).send({
+        error: "validation_error",
+        issues: [
+          ...(!parsedParams.success ? parsedParams.error.issues : []),
+          ...(!parsedBody.success ? parsedBody.error.issues : []),
+        ],
+      });
+    }
+
+    const actor = request.actor?.username ?? request.actor?.id;
+    const result = await transaction(async (client) => {
+      const packResult = await client.query<ContentPackRow>(
+        `
+          select ${packColumns()}
+          from content_packs
+          where id = $1
+          for update
+        `,
+        [parsedParams.data.id],
+      );
+      const pack = packResult.rows[0];
+
+      if (!pack) {
+        return null;
+      }
+
+      const updatedPackResult = await client.query<ContentPackRow>(
+        `
+          update content_packs
+          set
+            status = 'rejected',
+            approved_by = null,
+            approved_at = null
+          where id = $1
+          returning ${packColumns()}
+        `,
+        [pack.id],
+      );
+      const updatedPack = updatedPackResult.rows[0];
+
+      if (!updatedPack) {
+        throw new Error("Content pack rejection did not return a row.");
+      }
+
+      await writeAuditLog(
+        {
+          stage: "review",
+          entityType: "content_pack",
+          entityId: updatedPack.id,
+          ...(actor ? { actor } : {}),
+          action: "reject_content_pack",
+          statusBefore: pack.status,
+          statusAfter: updatedPack.status,
+          result: "success",
+          message: "Content pack rejected",
+          level: "success",
+          metadata: { reason: parsedBody.data.reason ?? null },
+        },
+        client,
+      );
+
+      return updatedPack;
+    });
+
+    if (!result) {
+      return reply.status(404).send({
+        error: "not_found",
+        message: "Content pack not found.",
+      });
+    }
+
+    return reply.status(200).send({ data: result });
   });
 }
