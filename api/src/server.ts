@@ -5,6 +5,7 @@ import { closeDb, DatabaseSchemaError, DatabaseUnavailableError } from "./db.js"
 import { registerTelegramAuth } from "./middleware/telegramAuth.js";
 import { analysisRoutes } from "./routes/analyses.js";
 import { healthRoutes } from "./routes/health.js";
+import { ideaRoutes } from "./routes/ideas.js";
 import { logRoutes } from "./routes/logs.js";
 import { packRoutes } from "./routes/packs.js";
 import { sourceRoutes } from "./routes/sources.js";
@@ -31,6 +32,7 @@ export async function buildServer() {
   await healthRoutes(app);
   await sourceRoutes(app);
   await analysisRoutes(app);
+  await ideaRoutes(app);
   await packRoutes(app);
   await logRoutes(app);
 
