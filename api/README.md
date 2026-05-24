@@ -39,6 +39,8 @@ been applied, they return `database_schema_missing`.
 - `GET /api/ideas`
 - `POST /api/analyses/:id/create-idea`
 - `GET /api/content-packs`
+- `POST /api/ideas/:id/build-pack`
+- `GET /api/content-assets`
 - `GET /api/logs`
 
 ## Source Write Flow
@@ -76,6 +78,18 @@ ANALYSIS_ID="<created-analysis-id>"
 curl -sS -X POST "http://127.0.0.1:4000/api/analyses/${ANALYSIS_ID}/create-idea"
 
 curl -sS http://127.0.0.1:4000/api/ideas
+curl -sS http://127.0.0.1:4000/api/logs
+```
+
+## Idea To Content Pack Flow
+
+```bash
+IDEA_ID="<created-idea-id>"
+
+curl -sS -X POST "http://127.0.0.1:4000/api/ideas/${IDEA_ID}/build-pack"
+
+curl -sS http://127.0.0.1:4000/api/content-packs
+curl -sS http://127.0.0.1:4000/api/content-assets
 curl -sS http://127.0.0.1:4000/api/logs
 ```
 

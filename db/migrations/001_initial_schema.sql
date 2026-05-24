@@ -209,7 +209,7 @@ create table pipeline_logs (
   ts timestamptz not null default now(),
   stage text not null,
   entity_type text check (
-    entity_type in ('source', 'analysis', 'idea', 'pack', 'asset', 'check', 'publish_job', 'metric')
+    entity_type in ('source', 'analysis', 'idea', 'content_pack', 'pack', 'asset', 'check', 'publish_job', 'metric')
   ),
   entity_id uuid,
   actor text,
