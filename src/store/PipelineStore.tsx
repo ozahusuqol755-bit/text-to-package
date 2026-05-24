@@ -1,4 +1,12 @@
-import { createContext, useContext, useMemo, useReducer, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useReducer,
+  type ReactNode,
+} from "react";
 import type {
   Analysis,
   AssetStatus,
@@ -40,6 +48,7 @@ import {
   parseSource as parseSourcePure,
   uid,
 } from "@/lib/pipeline/transitions";
+import { API_BASE_URL, backendApi } from "@/lib/backendApi";
 
 const OPERATOR = "@operator_kz";
 const EDITOR = "@editor_kz";
@@ -55,6 +64,10 @@ interface State {
   metrics: Metric[];
   tools: Tool[];
   logs: LogEvent[];
+  apiMode: "idle" | "loading" | "ready" | "unavailable";
+  apiMessage?: string;
+  apiAction?: string;
+  apiNotice?: string;
 }
 
 const initialState: State = {
@@ -68,6 +81,8 @@ const initialState: State = {
   metrics: mockMetrics,
   tools: mockTools,
   logs: mockLogs,
+  apiMode: "idle",
+  apiMessage: "API ещё не проверен. Пока показаны демо-данные.",
 };
 
 type Action =
@@ -87,7 +102,19 @@ type Action =
   | { type: "PATCH_PUBLISH_JOB"; id: string; patch: Partial<PublishJob> }
   | { type: "ADD_METRICS"; payload: Metric[] }
   | { type: "PATCH_METRIC"; id: string; patch: Partial<Metric> }
-  | { type: "LOG"; payload: LogEvent };
+  | { type: "LOG"; payload: LogEvent }
+  | {
+      type: "SET_BACKEND_DATA";
+      payload: Pick<
+        State,
+        "sources" | "analyses" | "ideas" | "packs" | "assets" | "reviewChecks" | "logs"
+      >;
+    }
+  | {
+      type: "SET_API_STATE";
+      patch: Pick<State, "apiMode"> &
+        Partial<Pick<State, "apiMessage" | "apiAction" | "apiNotice">>;
+    };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -153,12 +180,29 @@ function reducer(state: State, action: Action): State {
       };
     case "LOG":
       return { ...state, logs: [action.payload, ...state.logs].slice(0, 300) };
+    case "SET_BACKEND_DATA":
+      return {
+        ...state,
+        ...action.payload,
+        apiMode: "ready",
+        apiMessage: `API подключен: ${API_BASE_URL}`,
+      };
+    case "SET_API_STATE":
+      return { ...state, ...action.patch };
     default:
       return state;
   }
 }
 
 interface ContextValue extends State {
+  refreshBackendData: () => Promise<void>;
+  demoUploadReference: () => Promise<void>;
+  demoAnalyzeLatestSource: () => Promise<void>;
+  demoCreateIdeaFromLatestAnalysis: () => Promise<void>;
+  demoBuildPackFromLatestIdea: () => Promise<void>;
+  demoSendLatestPackToReview: () => Promise<void>;
+  demoApproveLatestPack: () => Promise<void>;
+  demoRejectLatestPack: () => Promise<void>;
   // sources
   addSource: (input: {
     title: string;
@@ -209,8 +253,58 @@ interface ContextValue extends State {
 
 const PipelineContext = createContext<ContextValue | null>(null);
 
+function apiErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return "API недоступен. Оставлены демо-данные.";
+}
+
+function latestSourceForAnalysis(sources: Source[]): Source | undefined {
+  return sources.find((source) => source.status === "new") ?? sources[0];
+}
+
+function latestPackForReview(packs: ContentPack[]): ContentPack | undefined {
+  return packs.find((pack) => pack.status === "ready_for_review") ?? packs[0];
+}
+
 export function PipelineProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
+
+  const refreshBackendData = useCallback(async () => {
+    dispatch({
+      type: "SET_API_STATE",
+      patch: {
+        apiMode: "loading",
+        apiMessage: `Подключаем API: ${API_BASE_URL}`,
+        apiAction: "refresh",
+      },
+    });
+
+    try {
+      const data = await backendApi.getAll();
+      dispatch({ type: "SET_BACKEND_DATA", payload: data });
+      dispatch({
+        type: "SET_API_STATE",
+        patch: {
+          apiMode: "ready",
+          apiMessage: `API подключен: ${API_BASE_URL}`,
+          apiAction: undefined,
+        },
+      });
+    } catch (error) {
+      dispatch({
+        type: "SET_API_STATE",
+        patch: {
+          apiMode: "unavailable",
+          apiMessage: apiErrorMessage(error),
+          apiAction: undefined,
+        },
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshBackendData();
+  }, [refreshBackendData]);
 
   const value = useMemo<ContextValue>(() => {
     const LEVEL_TO_RESULT = {
@@ -229,6 +323,104 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
           ...e,
           result: e.result ?? LEVEL_TO_RESULT[e.level],
         },
+      });
+
+    const runBackendAction = async (action: string, fn: () => Promise<string>) => {
+      dispatch({
+        type: "SET_API_STATE",
+        patch: {
+          apiMode: state.apiMode === "ready" ? "ready" : "loading",
+          apiAction: action,
+          apiNotice: undefined,
+        },
+      });
+
+      try {
+        const message = await fn();
+        const data = await backendApi.getAll();
+        dispatch({ type: "SET_BACKEND_DATA", payload: data });
+        dispatch({
+          type: "SET_API_STATE",
+          patch: {
+            apiMode: "ready",
+            apiAction: undefined,
+            apiNotice: message,
+            apiMessage: message,
+          },
+        });
+      } catch (error) {
+        dispatch({
+          type: "SET_API_STATE",
+          patch: {
+            apiMode: "unavailable",
+            apiAction: undefined,
+            apiNotice: apiErrorMessage(error),
+            apiMessage: "API недоступен / демо-данные",
+          },
+        });
+      }
+    };
+
+    const demoUploadReference = () =>
+      runBackendAction("upload_ref", async () => {
+        const stamp = new Date().toLocaleString("ru-RU");
+        const source = await backendApi.createSource({
+          title: `Demo ref ${stamp}`,
+          source_type: "url",
+          url: "https://example.com/content-factory-demo",
+          raw_text:
+            "Демо-реф для закрытого показа: оператор запускает реальный backend flow из Mini App.",
+          tags: ["demo", "frontend", "api"],
+        });
+        return `Источник создан: ${source.title}`;
+      });
+
+    const demoAnalyzeLatestSource = () =>
+      runBackendAction("analyze_source", async () => {
+        const source = latestSourceForAnalysis(state.sources);
+        if (!source) throw new Error("Нет источника для анализа.");
+        const analysis = await backendApi.sourceToAnalysis(source.id);
+        return `Анализ создан: ${analysis.id}`;
+      });
+
+    const demoCreateIdeaFromLatestAnalysis = () =>
+      runBackendAction("create_idea", async () => {
+        const analysis = state.analyses[0];
+        if (!analysis) throw new Error("Нет анализа для создания идеи.");
+        const idea = await backendApi.createIdea(analysis.id);
+        return `Идея создана: ${idea.topic}`;
+      });
+
+    const demoBuildPackFromLatestIdea = () =>
+      runBackendAction("build_pack", async () => {
+        const idea = state.ideas[0];
+        if (!idea) throw new Error("Нет идеи для сборки пакета.");
+        const result = await backendApi.buildPack(idea.id);
+        return `Контент-пакет собран: ${result.assets.length} ассета`;
+      });
+
+    const demoSendLatestPackToReview = () =>
+      runBackendAction("send_to_review", async () => {
+        const pack = latestPackForReview(state.packs);
+        if (!pack) throw new Error("Нет контент-пакета для проверки.");
+        await backendApi.sendToReview(pack.id);
+        return "Пакет отправлен на проверку";
+      });
+
+    const demoApproveLatestPack = () =>
+      runBackendAction("approve_pack", async () => {
+        const pack = latestPackForReview(state.packs);
+        if (!pack) throw new Error("Нет контент-пакета для approve.");
+        const result = await backendApi.approvePack(pack.id);
+        return `Approved: ${result.pack.approved_by ?? "operator"}`;
+      });
+
+    const demoRejectLatestPack = () =>
+      runBackendAction("reject_pack", async () => {
+        const pack = latestPackForReview(state.packs);
+        if (!pack) throw new Error("Нет контент-пакета для reject.");
+        await backendApi.rejectPack(pack.id, "Rejected from frontend demo flow");
+        return "Пакет отклонён";
       });
 
     // ── SOURCES ─────────────────────────────────────────────────────
@@ -741,6 +933,14 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
 
     return {
       ...state,
+      refreshBackendData,
+      demoUploadReference,
+      demoAnalyzeLatestSource,
+      demoCreateIdeaFromLatestAnalysis,
+      demoBuildPackFromLatestIdea,
+      demoSendLatestPackToReview,
+      demoApproveLatestPack,
+      demoRejectLatestPack,
       addSource,
       parseSource,
       rejectSource,
@@ -770,7 +970,7 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
       signalMetricToAnalysis: createAnalysisSignalFromMetrics,
       log,
     };
-  }, [state]);
+  }, [refreshBackendData, state]);
 
   return <PipelineContext.Provider value={value}>{children}</PipelineContext.Provider>;
 }

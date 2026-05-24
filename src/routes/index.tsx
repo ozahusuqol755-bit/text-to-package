@@ -13,6 +13,9 @@ import {
   Lock,
   AlertTriangle,
   Sparkles,
+  Loader2,
+  RefreshCw,
+  XCircle,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -21,6 +24,8 @@ export const Route = createFileRoute("/")({
 
 function Overview() {
   const s = usePipeline();
+  const apiBusy = Boolean(s.apiAction);
+  const apiReady = s.apiMode === "ready";
 
   // ── Pipeline state summary ────────────────────────────────────────
   const readyToPublish = s.packs.filter((p) => s.canPublish(p.id) && p.status === "approved");
@@ -173,6 +178,36 @@ function Overview() {
     },
   ];
 
+  const demoActions = [
+    { key: "upload_ref", label: "Загрузить реф", run: s.demoUploadReference, Icon: Inbox },
+    {
+      key: "analyze_source",
+      label: "Проанализировать",
+      run: s.demoAnalyzeLatestSource,
+      Icon: Brain,
+    },
+    {
+      key: "create_idea",
+      label: "Создать идею",
+      run: s.demoCreateIdeaFromLatestAnalysis,
+      Icon: Lightbulb,
+    },
+    {
+      key: "build_pack",
+      label: "Собрать контент-пакет",
+      run: s.demoBuildPackFromLatestIdea,
+      Icon: Package,
+    },
+    {
+      key: "send_to_review",
+      label: "Отправить на проверку",
+      run: s.demoSendLatestPackToReview,
+      Icon: ShieldCheck,
+    },
+    { key: "approve_pack", label: "Approve", run: s.demoApproveLatestPack, Icon: CheckCircle2 },
+    { key: "reject_pack", label: "Reject", run: s.demoRejectLatestPack, Icon: XCircle },
+  ];
+
   return (
     <>
       {/* ── Hero / operator state ─────────────────────────────────── */}
@@ -221,6 +256,56 @@ function Overview() {
           <ArrowRight className="size-4 shrink-0" />
         </Link>
         <div className="mt-1.5 text-[11px] text-muted-foreground px-1">{nextAction.hint}</div>
+      </div>
+
+      {/* ── Backend demo controls ────────────────────────────────── */}
+      <div className="tg-card">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              Backend API
+            </div>
+            <div className="font-semibold text-sm">
+              {apiReady ? "Реальные действия подключены" : "API недоступен / демо-данные"}
+            </div>
+            <div className="mt-0.5 text-[11px] text-muted-foreground">
+              {s.apiNotice ?? s.apiMessage ?? "Данные обновятся после действия."}
+            </div>
+          </div>
+          <button
+            onClick={() => void s.refreshBackendData()}
+            disabled={apiBusy}
+            className="size-9 rounded-xl grid place-items-center bg-primary/15 text-primary border border-primary/30 disabled:opacity-50"
+            aria-label="Обновить API данные"
+          >
+            {s.apiAction === "refresh" ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <RefreshCw className="size-4" />
+            )}
+          </button>
+        </div>
+
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {demoActions.map(({ key, label, run, Icon }) => {
+            const loading = s.apiAction === key;
+            return (
+              <button
+                key={key}
+                onClick={() => void run()}
+                disabled={apiBusy}
+                className="min-h-11 inline-flex items-center justify-center gap-1.5 rounded-xl bg-black/20 border border-border px-2.5 py-2 text-xs font-semibold disabled:opacity-50"
+              >
+                {loading ? (
+                  <Loader2 className="size-3.5 shrink-0 animate-spin" />
+                ) : (
+                  <Icon className="size-3.5 shrink-0" />
+                )}
+                <span className="min-w-0">{label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* ── Demo scenario chain ──────────────────────────────────── */}

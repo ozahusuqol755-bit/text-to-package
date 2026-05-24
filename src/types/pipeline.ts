@@ -6,7 +6,10 @@ export type SourceType =
   | "video"
   | "screenshot"
   | "metric"
-  | "research";
+  | "research"
+  | "url"
+  | "text"
+  | "manual";
 
 export type SourceStatus = "new" | "parsed" | "failed" | "rejected" | "ready_for_analysis";
 
@@ -168,6 +171,7 @@ export type LogEntityType =
   | "source"
   | "analysis"
   | "idea"
+  | "content_pack"
   | "pack"
   | "asset"
   | "check"

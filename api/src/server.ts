@@ -15,6 +15,14 @@ export async function buildServer() {
     logger: config.NODE_ENV !== "test",
   });
 
+  app.addHook("onRequest", async (_request, reply) => {
+    reply.header("access-control-allow-origin", "*");
+    reply.header("access-control-allow-methods", "GET,POST,OPTIONS");
+    reply.header("access-control-allow-headers", "content-type,x-telegram-init-data");
+  });
+
+  app.options("/*", async (_request, reply) => reply.status(204).send());
+
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof DatabaseUnavailableError || error instanceof DatabaseSchemaError) {
       const statusCode = error instanceof DatabaseUnavailableError ? 503 : 500;

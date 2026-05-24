@@ -19,6 +19,9 @@ const TYPE_LABEL: Record<SourceType, string> = {
   screenshot: "скрин",
   metric: "метрика",
   research: "research",
+  url: "url",
+  text: "текст",
+  manual: "manual",
 };
 
 function SourcesPage() {
