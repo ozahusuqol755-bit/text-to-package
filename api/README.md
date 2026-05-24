@@ -33,8 +33,25 @@ been applied, they return `database_schema_missing`.
 
 - `GET /health`
 - `GET /api/sources`
+- `POST /api/sources`
 - `GET /api/content-packs`
 - `GET /api/logs`
+
+## Source Write Flow
+
+```bash
+curl -sS -X POST http://127.0.0.1:4000/api/sources \
+  -H 'content-type: application/json' \
+  -d '{
+    "title": "Demo source",
+    "source_type": "url",
+    "url": "https://example.com",
+    "tags": ["demo"]
+  }'
+
+curl -sS http://127.0.0.1:4000/api/sources
+curl -sS http://127.0.0.1:4000/api/logs
+```
 
 ## Authentication
 

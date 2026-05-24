@@ -17,7 +17,10 @@ create table sources (
       'video',
       'screenshot',
       'metric',
-      'research'
+      'research',
+      'url',
+      'text',
+      'manual'
     )
   ),
   status text not null default 'new' check (
@@ -55,6 +58,23 @@ create table analyses (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   check (((source_id is not null)::int + (metric_id is not null)::int) = 1)
+);
+
+alter table sources drop constraint if exists sources_source_type_check;
+alter table sources add constraint sources_source_type_check check (
+  source_type in (
+    'competitor',
+    'trend',
+    'brand_doc',
+    'note',
+    'video',
+    'screenshot',
+    'metric',
+    'research',
+    'url',
+    'text',
+    'manual'
+  )
 );
 
 create table ideas (
