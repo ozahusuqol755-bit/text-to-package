@@ -37,12 +37,16 @@ function Overview() {
   const primaryIdea = primaryPack
     ? (s.ideas.find((i) => i.id === primaryPack.idea_id) ?? null)
     : (s.ideas[0] ?? null);
-  const primaryAnalysis = primaryIdea
-    ? (s.analyses.find((a) => a.id === primaryIdea.analysis_id) ?? null)
-    : (s.analyses[0] ?? null);
-  const primarySource = primaryAnalysis
-    ? (s.sources.find((src) => src.id === primaryAnalysis.source_id) ?? null)
-    : (s.sources[0] ?? null);
+  const primarySourceId = primaryIdea?.source_refs?.[0];
+  const primaryAnalysis =
+    (primarySourceId
+      ? s.analyses.find((a) => a.source_id === primarySourceId)
+      : null) ?? s.analyses[0] ?? null;
+  const primarySource =
+    (primarySourceId ? s.sources.find((src) => src.id === primarySourceId) : null) ??
+    (primaryAnalysis ? s.sources.find((src) => src.id === primaryAnalysis.source_id) : null) ??
+    s.sources[0] ??
+    null;
   const primaryChecks = primaryPack
     ? s.reviewChecks.filter((c) => c.pack_id === primaryPack.id)
     : [];
