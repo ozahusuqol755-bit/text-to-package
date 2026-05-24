@@ -1,4 +1,20 @@
 services:
+  api:
+    build:
+      context: .
+    container_name: content_factory_api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 4000
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/content_factory
+    expose:
+      - "4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   postgres:
     image: postgres:16
     container_name: content_factory_postgres
