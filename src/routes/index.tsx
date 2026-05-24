@@ -32,16 +32,15 @@ function Overview() {
   const failedJobs = s.publishJobs.filter((j) => j.status === "failed");
 
   // ── Pick primary demo chain (latest source path) ──────────────────
-  const primaryPack =
-    s.packs.find((p) => p.status === "ready_for_review") ?? s.packs[0] ?? null;
+  const primaryPack = s.packs.find((p) => p.status === "ready_for_review") ?? s.packs[0] ?? null;
   const primaryIdea = primaryPack
     ? (s.ideas.find((i) => i.id === primaryPack.idea_id) ?? null)
     : (s.ideas[0] ?? null);
   const primarySourceId = primaryIdea?.source_refs?.[0];
   const primaryAnalysis =
-    (primarySourceId
-      ? s.analyses.find((a) => a.source_id === primarySourceId)
-      : null) ?? s.analyses[0] ?? null;
+    (primarySourceId ? s.analyses.find((a) => a.source_id === primarySourceId) : null) ??
+    s.analyses[0] ??
+    null;
   const primarySource =
     (primarySourceId ? s.sources.find((src) => src.id === primarySourceId) : null) ??
     (primaryAnalysis ? s.sources.find((src) => src.id === primaryAnalysis.source_id) : null) ??
@@ -55,7 +54,11 @@ function Overview() {
     : (s.metrics[0] ?? null);
 
   // ── Next operator action ──────────────────────────────────────────
-  let nextAction: { label: string; to: "/sources" | "/analysis" | "/ideas" | "/packs" | "/review" | "/publish" | "/metrics"; hint: string };
+  let nextAction: {
+    label: string;
+    to: "/sources" | "/analysis" | "/ideas" | "/packs" | "/review" | "/publish" | "/metrics";
+    hint: string;
+  };
   if (failedJobs.length > 0) {
     nextAction = {
       label: "Повторить публикацию",
@@ -165,9 +168,7 @@ function Overview() {
       to: "/metrics",
       Icon: BarChart3,
       label: "Метрики",
-      value: primaryMetric
-        ? `${primaryMetric.views ?? 0} просм.`
-        : "ждём данные",
+      value: primaryMetric ? `${primaryMetric.views ?? 0} просм.` : "ждём данные",
       state: primaryMetric ? "done" : "pending",
     },
   ];
@@ -197,18 +198,8 @@ function Overview() {
             label="Готово к публикации"
             Icon={CheckCircle2}
           />
-          <StateCell
-            tone="warn"
-            value={onReview.length}
-            label="На проверке"
-            Icon={ShieldCheck}
-          />
-          <StateCell
-            tone="error"
-            value={blocked.length}
-            label="Заблокировано"
-            Icon={Lock}
-          />
+          <StateCell tone="warn" value={onReview.length} label="На проверке" Icon={ShieldCheck} />
+          <StateCell tone="error" value={blocked.length} label="Заблокировано" Icon={Lock} />
           <StateCell
             tone="info"
             value={failedJobs.length}
