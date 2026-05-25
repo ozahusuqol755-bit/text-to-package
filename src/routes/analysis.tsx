@@ -20,6 +20,21 @@ function AnalysisPage() {
       10,
   );
 
+  async function generateIdea(analysisId: string) {
+    if (s.apiMode === "ready") {
+      await s.createIdeaViaBackend(analysisId);
+      toast.success("Идея создана");
+      navigate({ to: "/ideas" });
+      return;
+    }
+
+    const ideaId = s.createIdeaFromAnalysis(analysisId);
+    if (ideaId) {
+      toast.success("Идея создана");
+      navigate({ to: "/ideas" });
+    }
+  }
+
   return (
     <>
       <StageHeader
@@ -47,6 +62,9 @@ function AnalysisPage() {
             const src = s.sources.find((x) => x.id === a.source_id);
             const stopped = a.risk_status === "stopped";
             const archived = a.risk_status === "archived";
+            const payload = a.analysis_payload ?? {};
+            const opportunities = payload.content_opportunities ?? [];
+            const risks = payload.risks ?? [];
             return (
               <div key={a.id} className={`tg-card ${stopped ? "opacity-70" : ""}`}>
                 <div className="flex items-start justify-between gap-2">
@@ -72,11 +90,34 @@ function AnalysisPage() {
                   <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
                     <Cell k="hook" v={a.hook} />
                     <Cell k="angle" v={a.angle} />
+                    <Cell k="why_it_worked" v={payload.why_it_worked ?? a.pain} />
+                    <Cell
+                      k="metrics_signal"
+                      v={
+                        payload.metrics_signal
+                          ? `${payload.metrics_signal.strength ?? "—"} · ${
+                              payload.metrics_signal.reason ?? "—"
+                            }`
+                          : "—"
+                      }
+                    />
+                    <Cell k="format_pattern" v={payload.format_pattern ?? "—"} />
                     <Cell k="pain" v={a.pain} />
                     <Cell k="promise" v={a.promise} />
                     <Cell k="cta" v={a.cta} />
                     <Cell k="platform_fit" v={a.platform_fit.join(", ") || "—"} />
                   </div>
+                )}
+                {opportunities.length > 0 && (
+                  <div className="mt-2 text-xs">
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      opportunities
+                    </div>
+                    <div className="text-foreground/90">{opportunities.join(" · ")}</div>
+                  </div>
+                )}
+                {risks.length > 0 && (
+                  <div className="mt-2 text-xs text-warning">Риски: {risks.join(" · ")}</div>
                 )}
                 {a.risk_notes && a.risk_notes !== "—" && (
                   <div className="text-xs text-warning mt-2">⚠ {a.risk_notes}</div>
@@ -89,16 +130,11 @@ function AnalysisPage() {
                 {!stopped && !archived && (
                   <div className="grid grid-cols-3 gap-2 mt-3">
                     <button
-                      onClick={() => {
-                        const ideaId = s.createIdeaFromAnalysis(a.id);
-                        if (ideaId) {
-                          toast.success("Идея создана");
-                          navigate({ to: "/ideas" });
-                        }
-                      }}
-                      className="inline-flex items-center justify-center gap-1 rounded-xl bg-primary text-primary-foreground px-2 py-2 text-xs font-semibold"
+                      onClick={() => void generateIdea(a.id)}
+                      disabled={s.apiAction === "create_idea_from_analysis"}
+                      className="inline-flex items-center justify-center gap-1 rounded-xl bg-primary text-primary-foreground px-2 py-2 text-xs font-semibold disabled:opacity-60"
                     >
-                      <Lightbulb className="size-3.5" /> Создать идею
+                      <Lightbulb className="size-3.5" /> Generate idea
                     </button>
                     <button
                       onClick={() => {
@@ -155,6 +191,20 @@ function AnalysisPage() {
                 { label: "priority_score", value: String(drawer.priority_score) },
                 { label: "decision", value: drawer.decision },
                 { label: "risk_notes", value: drawer.risk_notes },
+                { label: "why_it_worked", value: drawer.analysis_payload?.why_it_worked ?? "—" },
+                {
+                  label: "metrics_signal",
+                  value: drawer.analysis_payload?.metrics_signal
+                    ? `${drawer.analysis_payload.metrics_signal.strength ?? "—"} · ${
+                        drawer.analysis_payload.metrics_signal.reason ?? "—"
+                      }`
+                    : "—",
+                },
+                {
+                  label: "opportunities",
+                  value: drawer.analysis_payload?.content_opportunities?.join(" · ") ?? "—",
+                },
+                { label: "risks", value: drawer.analysis_payload?.risks?.join(" · ") ?? "—" },
               ]
             : []
         }
@@ -162,16 +212,11 @@ function AnalysisPage() {
           drawer
             ? [
                 {
-                  label: "Создать идею",
-                  onClick: () => {
-                    const id = s.createIdeaFromAnalysis(drawer.id);
-                    if (id) {
-                      toast.success("Идея создана");
-                      navigate({ to: "/ideas" });
-                    }
-                  },
+                  label: "Generate idea",
+                  onClick: () => void generateIdea(drawer.id),
                   variant: "primary",
-                  disabled: drawer.risk_status !== "active",
+                  disabled:
+                    drawer.risk_status !== "active" || s.apiAction === "create_idea_from_analysis",
                 },
                 {
                   label: "В архив",

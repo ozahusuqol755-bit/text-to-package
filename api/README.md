@@ -38,8 +38,10 @@ been applied, they return `database_schema_missing`.
 - `POST /api/sources/import/csv`
 - `GET /api/analyses`
 - `POST /api/sources/:id/to-analysis`
+- `POST /api/sources/to-analysis-bulk`
 - `GET /api/ideas`
 - `POST /api/analyses/:id/create-idea`
+- `POST /api/analysis/:id/to-idea`
 - `GET /api/content-packs`
 - `POST /api/ideas/:id/build-pack`
 - `GET /api/content-assets`
@@ -95,9 +97,20 @@ SOURCE_ID="<created-source-id>"
 
 curl -sS -X POST "http://127.0.0.1:4000/api/sources/${SOURCE_ID}/to-analysis"
 
+curl -sS -X POST http://127.0.0.1:4000/api/sources/to-analysis-bulk \
+  -H 'content-type: application/json' \
+  -d '{"source_ids":["'"${SOURCE_ID}"'"]}'
+
 curl -sS http://127.0.0.1:4000/api/analyses
 curl -sS http://127.0.0.1:4000/api/logs
 ```
+
+Analysis uses `AI_PROVIDER`, `AI_BASE_URL`, `AI_API_KEY`, and `AI_MODEL` when
+all four values are set. Without AI env, the API uses a deterministic
+ViralMaxing fallback that still considers `views`, `likes`, `comments`,
+`shares`, `saves`, `engagement_rate`, `platform`, `author`, `caption`,
+`published_at`, and `niche`. The fallback writes `ai_fallback_used` to
+`pipeline_logs`; AI failures write `ai_error` and then fallback.
 
 ## Analysis To Idea Flow
 
@@ -105,6 +118,7 @@ curl -sS http://127.0.0.1:4000/api/logs
 ANALYSIS_ID="<created-analysis-id>"
 
 curl -sS -X POST "http://127.0.0.1:4000/api/analyses/${ANALYSIS_ID}/create-idea"
+curl -sS -X POST "http://127.0.0.1:4000/api/analysis/${ANALYSIS_ID}/to-idea"
 
 curl -sS http://127.0.0.1:4000/api/ideas
 curl -sS http://127.0.0.1:4000/api/logs

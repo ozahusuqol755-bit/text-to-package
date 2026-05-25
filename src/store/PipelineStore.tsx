@@ -206,6 +206,8 @@ interface ContextValue extends State {
   importGoogleSheetRefs: (url: string) => Promise<void>;
   importCsvRefs: (csv: string) => Promise<void>;
   analyzeSourceViaBackend: (sourceId: string) => Promise<void>;
+  analyzeSourcesBulkViaBackend: (sourceIds: string[]) => Promise<void>;
+  createIdeaViaBackend: (analysisId: string) => Promise<void>;
   // sources
   addSource: (input: {
     title: string;
@@ -446,6 +448,22 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
       runBackendAction("analyze_selected_source", async () => {
         const analysis = await backendApi.sourceToAnalysis(sourceId);
         return `Ref отправлен в Analysis: ${analysis.id}`;
+      });
+
+    const analyzeSourcesBulkViaBackend = (sourceIds: string[]) =>
+      runBackendAction("analyze_refs_bulk", async () => {
+        if (sourceIds.length === 0) throw new Error("Выберите refs для анализа.");
+        const result = await backendApi.sourcesToAnalysisBulk(sourceIds);
+        if (result.errors.length > 0) {
+          return `Analysis: ${result.analysis_count} refs, ошибок: ${result.errors.length}`;
+        }
+        return `Analysis готов: ${result.analysis_count} refs`;
+      });
+
+    const createIdeaViaBackend = (analysisId: string) =>
+      runBackendAction("create_idea_from_analysis", async () => {
+        const idea = await backendApi.analysisToIdea(analysisId);
+        return `Идея создана: ${idea.topic}`;
       });
 
     // ── SOURCES ─────────────────────────────────────────────────────
@@ -969,6 +987,8 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
       importGoogleSheetRefs,
       importCsvRefs,
       analyzeSourceViaBackend,
+      analyzeSourcesBulkViaBackend,
+      createIdeaViaBackend,
       addSource,
       parseSource,
       rejectSource,

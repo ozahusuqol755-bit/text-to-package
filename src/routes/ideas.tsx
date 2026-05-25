@@ -32,6 +32,7 @@ function IdeasPage() {
         <div className="space-y-2">
           {s.ideas.map((i) => {
             const hasPack = s.packs.some((p) => p.idea_id === i.id);
+            const payload = i.idea_payload ?? {};
             return (
               <div key={i.id} className="tg-card">
                 <div className="flex items-start justify-between gap-2">
@@ -39,7 +40,9 @@ function IdeasPage() {
                     <div className="text-[11px] text-muted-foreground">
                       #{i.id.slice(-3)} · приоритет {i.priority} · score {i.priority_score}
                     </div>
-                    <div className="font-semibold text-sm leading-snug">{i.topic}</div>
+                    <div className="font-semibold text-sm leading-snug">
+                      {payload.title ?? i.topic}
+                    </div>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <StatusBadge status={i.status} />
@@ -53,8 +56,27 @@ function IdeasPage() {
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Угол: {i.angle}. Источники: {i.source_refs.join(", ") || "—"}.
+                  Thesis: {payload.thesis ?? i.angle}. Источники: {i.source_refs.join(", ") || "—"}.
                 </p>
+                <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
+                  <IdeaCell k="format" v={payload.format ?? "—"} />
+                  <IdeaCell k="platform" v={payload.platform ?? "—"} />
+                  <IdeaCell k="hook" v={payload.hook ?? i.topic} />
+                  <IdeaCell k="adaptation_note" v={payload.adaptation_note ?? "—"} />
+                </div>
+                {payload.outline && payload.outline.length > 0 && (
+                  <div className="mt-2 text-xs">
+                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      outline
+                    </div>
+                    <div className="text-foreground/90">{payload.outline.join(" · ")}</div>
+                  </div>
+                )}
+                {payload.risk_to_check && (
+                  <div className="mt-2 text-xs text-warning">
+                    Risk to check: {payload.risk_to_check}
+                  </div>
+                )}
                 <div className="mt-2 flex flex-wrap gap-1">
                   {i.platform_targets.map((p) => (
                     <span key={p} className="chip">
@@ -127,7 +149,7 @@ function IdeasPage() {
         id={drawer?.id ?? ""}
         title={drawer?.topic ?? ""}
         status={drawer?.status ?? ""}
-        body={drawer?.angle}
+        body={drawer?.idea_payload?.thesis ?? drawer?.angle}
         refs={
           drawer
             ? [
@@ -138,6 +160,15 @@ function IdeasPage() {
                 { label: "source_refs", value: drawer.source_refs.join(", ") || "—" },
                 { label: "platforms", value: drawer.platform_targets.join(", ") },
                 { label: "tags", value: drawer.tags.join(", ") || "—" },
+                { label: "format", value: drawer.idea_payload?.format ?? "—" },
+                { label: "platform", value: drawer.idea_payload?.platform ?? "—" },
+                { label: "hook", value: drawer.idea_payload?.hook ?? "—" },
+                { label: "outline", value: drawer.idea_payload?.outline?.join(" · ") ?? "—" },
+                {
+                  label: "adaptation_note",
+                  value: drawer.idea_payload?.adaptation_note ?? "—",
+                },
+                { label: "risk_to_check", value: drawer.idea_payload?.risk_to_check ?? "—" },
                 { label: "pack", value: s.packs.find((p) => p.idea_id === drawer.id)?.id ?? "—" },
               ]
             : []
@@ -179,5 +210,14 @@ function IdeasPage() {
         }
       />
     </>
+  );
+}
+
+function IdeaCell({ k, v }: { k: string; v: string }) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{k}</div>
+      <div className="text-foreground/90">{v}</div>
+    </div>
   );
 }

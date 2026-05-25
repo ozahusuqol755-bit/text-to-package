@@ -41,6 +41,21 @@ export interface Source {
 export type AnalysisDecision = "to_idea" | "archive" | "stop";
 export type AnalysisRiskStatus = "active" | "stopped" | "archived";
 
+export interface AnalysisPayload {
+  summary?: string;
+  why_it_worked?: string;
+  audience?: string;
+  hook?: string;
+  angle?: string;
+  format_pattern?: string;
+  metrics_signal?: {
+    strength?: "low" | "medium" | "high";
+    reason?: string;
+  };
+  content_opportunities?: string[];
+  risks?: string[];
+}
+
 export interface Analysis {
   id: string;
   source_id: string;
@@ -56,6 +71,7 @@ export interface Analysis {
   platform_fit: Platform[];
   priority_score: number;
   decision: AnalysisDecision;
+  analysis_payload?: AnalysisPayload;
   created_at: string;
 }
 
@@ -72,6 +88,24 @@ export type Platform =
 
 export type IdeaStatus = "draft" | "accepted" | "rejected" | "in_pack";
 
+export interface IdeaPayload {
+  title?: string;
+  thesis?: string;
+  format?: "telegram_post" | "short_video" | "carousel" | "thread" | "article" | "script";
+  platform?:
+    | "telegram"
+    | "instagram"
+    | "tiktok"
+    | "youtube_shorts"
+    | "x"
+    | "linkedin"
+    | "universal";
+  hook?: string;
+  outline?: string[];
+  adaptation_note?: string;
+  risk_to_check?: string;
+}
+
 export interface Idea {
   id: string;
   topic: string;
@@ -82,6 +116,7 @@ export interface Idea {
   priority_score: number;
   tags: string[];
   status: IdeaStatus;
+  idea_payload?: IdeaPayload;
   created_at: string;
 }
 

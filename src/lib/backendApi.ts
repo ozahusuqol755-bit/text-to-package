@@ -32,6 +32,12 @@ interface ImportSourcesResponse {
   sources: Source[];
 }
 
+interface BulkAnalysisResponse {
+  analysis_count: number;
+  analyses: Analysis[];
+  errors: Array<{ source_id: string; error: string }>;
+}
+
 async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const hasBody = init?.body !== undefined;
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -79,9 +85,12 @@ export const backendApi = {
     postData<ImportSourcesResponse>("/api/sources/import/csv", { csv }),
   sourceToAnalysis: (sourceId: string) =>
     postData<Analysis>(`/api/sources/${sourceId}/to-analysis`),
+  sourcesToAnalysisBulk: (sourceIds: string[]) =>
+    postData<BulkAnalysisResponse>("/api/sources/to-analysis-bulk", { source_ids: sourceIds }),
 
   getAnalyses: () => getData<Analysis[]>("/api/analyses"),
   createIdea: (analysisId: string) => postData<Idea>(`/api/analyses/${analysisId}/create-idea`),
+  analysisToIdea: (analysisId: string) => postData<Idea>(`/api/analysis/${analysisId}/to-idea`),
 
   getIdeas: () => getData<Idea[]>("/api/ideas"),
   buildPack: (ideaId: string) =>

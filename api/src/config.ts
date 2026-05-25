@@ -9,6 +9,10 @@ const EnvSchema = z.object({
   PORT: z.coerce.number().int().positive().default(4000),
   HOST: z.string().default("127.0.0.1"),
   DATABASE_URL: z.string().url(),
+  AI_PROVIDER: z.string().optional().default(""),
+  AI_BASE_URL: z.string().optional().default(""),
+  AI_API_KEY: z.string().optional().default(""),
+  AI_MODEL: z.string().optional().default(""),
 });
 
 export const config = EnvSchema.parse(process.env);

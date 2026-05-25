@@ -1,7 +1,14 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { transaction } from "../db.js";
+import { isAiConfigured, requestStructuredJson } from "../lib/ai.js";
 import { writeAuditLog } from "../lib/auditLog.js";
+import {
+  buildDeterministicIdea,
+  type AnalysisForIdeaInput,
+  type DeterministicIdeaInput,
+  type IdeaPayload,
+} from "../lib/viralContent.js";
 
 interface AnalysisRow {
   id: string;
@@ -15,6 +22,7 @@ interface AnalysisRow {
   cta: string;
   priority_score: number;
   decision: string;
+  analysis_payload: unknown;
 }
 
 interface IdeaRow {
@@ -27,12 +35,32 @@ interface IdeaRow {
   priority_score: number;
   tags: unknown;
   status: string;
+  idea_payload: unknown;
   created_at: Date;
   updated_at: Date;
 }
 
 const AnalysisIdParamsSchema = z.object({
   id: z.string().uuid(),
+});
+
+const AiIdeaPayloadSchema = z.object({
+  title: z.string().min(1),
+  thesis: z.string().min(1),
+  format: z.enum(["telegram_post", "short_video", "carousel", "thread", "article", "script"]),
+  platform: z.enum([
+    "telegram",
+    "instagram",
+    "tiktok",
+    "youtube_shorts",
+    "x",
+    "linkedin",
+    "universal",
+  ]),
+  hook: z.string().min(1),
+  outline: z.array(z.string().min(1)).default([]),
+  adaptation_note: z.string().min(1),
+  risk_to_check: z.string().min(1),
 });
 
 function ideaColumns(): string {
@@ -46,6 +74,7 @@ function ideaColumns(): string {
     priority_score,
     tags,
     status,
+    idea_payload,
     created_at,
     updated_at
   `;
@@ -65,18 +94,128 @@ function priorityFromScore(score: number): "low" | "medium" | "high" {
   return "low";
 }
 
-function buildIdeaInput(analysis: AnalysisRow) {
+function platformTargets(platform: IdeaPayload["platform"]): string[] {
+  if (platform === "tiktok") return ["tiktok", "reels"];
+  if (platform === "instagram") return ["instagram", "reels"];
+  if (platform === "x") return ["x", "threads"];
+  if (platform === "youtube_shorts") return ["video"];
+  if (platform === "linkedin") return ["telegram"];
+
+  return [platform === "universal" ? "telegram" : platform];
+}
+
+function ideaFromPayload(analysis: AnalysisRow, payload: IdeaPayload): DeterministicIdeaInput {
   const sourceRefs = normalizeSourceRefs(analysis.source_refs, analysis.source_id);
 
   return {
-    topic: analysis.hook || analysis.meaning.slice(0, 120),
-    angle: analysis.angle,
+    topic: payload.title,
+    angle: payload.thesis,
     source_refs: sourceRefs,
-    platform_targets: ["telegram"],
+    platform_targets: platformTargets(payload.platform),
     priority: priorityFromScore(analysis.priority_score),
     priority_score: analysis.priority_score,
-    tags: ["generated", "analysis"],
+    tags: ["generated", "analysis", "viralmaxing"],
     status: "draft",
+    payload,
+  };
+}
+
+function buildIdeaPrompt(analysis: AnalysisRow): string {
+  return `
+Generate a content idea from this enriched ViralMaxing analysis.
+
+The idea must adapt the pattern, not copy the original.
+
+Analysis:
+${JSON.stringify(
+  {
+    id: analysis.id,
+    source_id: analysis.source_id,
+    source_refs: analysis.source_refs,
+    meaning: analysis.meaning,
+    hook: analysis.hook,
+    angle: analysis.angle,
+    pain: analysis.pain,
+    promise: analysis.promise,
+    cta: analysis.cta,
+    priority_score: analysis.priority_score,
+    analysis_payload: analysis.analysis_payload,
+  },
+  null,
+  2,
+)}
+
+Return exactly this JSON shape:
+{
+  "title": "...",
+  "thesis": "...",
+  "format": "telegram_post|short_video|carousel|thread|article|script",
+  "platform": "telegram|instagram|tiktok|youtube_shorts|x|linkedin|universal",
+  "hook": "...",
+  "outline": ["...", "...", "..."],
+  "adaptation_note": "...",
+  "risk_to_check": "..."
+}
+`;
+}
+
+async function buildIdeaInput(analysis: AnalysisRow): Promise<{
+  input: DeterministicIdeaInput;
+  auditActions: Array<{
+    action: "ai_fallback_used" | "ai_error";
+    result: "success" | "error";
+    message: string;
+    level: "info" | "error";
+    metadata?: Record<string, unknown>;
+  }>;
+}> {
+  const auditActions: Array<{
+    action: "ai_fallback_used" | "ai_error";
+    result: "success" | "error";
+    message: string;
+    level: "info" | "error";
+    metadata?: Record<string, unknown>;
+  }> = [];
+
+  if (isAiConfigured()) {
+    try {
+      const aiResult = await requestStructuredJson(buildIdeaPrompt(analysis));
+      const payload = AiIdeaPayloadSchema.parse(aiResult);
+      return { input: ideaFromPayload(analysis, payload), auditActions };
+    } catch (error) {
+      auditActions.push({
+        action: "ai_error",
+        result: "error",
+        message: "AI idea generation failed; deterministic fallback used",
+        level: "error",
+        metadata: { error: error instanceof Error ? error.message : String(error) },
+      });
+    }
+  }
+
+  auditActions.push({
+    action: "ai_fallback_used",
+    result: "success",
+    message: "Deterministic ViralMaxing idea fallback used",
+    level: "info",
+    metadata: { reason: isAiConfigured() ? "ai_error" : "ai_not_configured" },
+  });
+
+  return {
+    input: buildDeterministicIdea({
+      id: analysis.id,
+      source_id: analysis.source_id,
+      source_refs: analysis.source_refs,
+      meaning: analysis.meaning,
+      hook: analysis.hook,
+      angle: analysis.angle,
+      priority_score: analysis.priority_score,
+      analysis_payload:
+        analysis.analysis_payload && typeof analysis.analysis_payload === "object"
+          ? analysis.analysis_payload
+          : {},
+    } satisfies AnalysisForIdeaInput),
+    auditActions,
   };
 }
 
@@ -97,7 +236,7 @@ export async function ideaRoutes(app: FastifyInstance): Promise<void> {
     return { data: ideas };
   });
 
-  app.post("/api/analyses/:id/create-idea", async (request, reply) => {
+  const createIdeaHandler = async (request: FastifyRequest, reply: FastifyReply) => {
     const parsedParams = AnalysisIdParamsSchema.safeParse(request.params);
 
     if (!parsedParams.success) {
@@ -122,7 +261,8 @@ export async function ideaRoutes(app: FastifyInstance): Promise<void> {
             promise,
             cta,
             priority_score,
-            decision
+            decision,
+            analysis_payload
           from analyses
           where id = $1
           for update
@@ -135,7 +275,7 @@ export async function ideaRoutes(app: FastifyInstance): Promise<void> {
         return null;
       }
 
-      const input = buildIdeaInput(analysis);
+      const { input, auditActions } = await buildIdeaInput(analysis);
       const ideaResult = await client.query<IdeaRow>(
         `
           insert into ideas (
@@ -146,9 +286,10 @@ export async function ideaRoutes(app: FastifyInstance): Promise<void> {
             priority,
             priority_score,
             tags,
-            status
+            status,
+            idea_payload
           )
-          values ($1, $2, $3::jsonb, $4::jsonb, $5, $6, $7::jsonb, $8)
+          values ($1, $2, $3::jsonb, $4::jsonb, $5, $6, $7::jsonb, $8, $9::jsonb)
           returning ${ideaColumns()}
         `,
         [
@@ -160,6 +301,7 @@ export async function ideaRoutes(app: FastifyInstance): Promise<void> {
           input.priority_score,
           JSON.stringify(input.tags),
           input.status,
+          JSON.stringify(input.payload),
         ],
       );
       const createdIdea = ideaResult.rows[0];
@@ -184,6 +326,23 @@ export async function ideaRoutes(app: FastifyInstance): Promise<void> {
         client,
       );
 
+      for (const auditAction of auditActions) {
+        await writeAuditLog(
+          {
+            stage: "ideas",
+            entityType: "idea",
+            entityId: createdIdea.id,
+            ...(actor ? { actor } : {}),
+            action: auditAction.action,
+            result: auditAction.result,
+            message: auditAction.message,
+            level: auditAction.level,
+            metadata: { analysis_id: analysis.id, ...auditAction.metadata },
+          },
+          client,
+        );
+      }
+
       return createdIdea;
     });
 
@@ -195,5 +354,8 @@ export async function ideaRoutes(app: FastifyInstance): Promise<void> {
     }
 
     return reply.status(201).send({ data: idea });
-  });
+  };
+
+  app.post("/api/analyses/:id/create-idea", createIdeaHandler);
+  app.post("/api/analysis/:id/to-idea", createIdeaHandler);
 }

@@ -57,6 +57,7 @@ create table analyses (
   platform_fit jsonb not null default '[]'::jsonb,
   priority_score integer not null check (priority_score >= 0),
   decision text not null default 'to_idea' check (decision in ('to_idea', 'archive', 'stop')),
+  analysis_payload jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   check (((source_id is not null)::int + (metric_id is not null)::int) = 1)
@@ -92,6 +93,7 @@ create table ideas (
   status text not null default 'draft' check (
     status in ('draft', 'accepted', 'rejected', 'in_pack')
   ),
+  idea_payload jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

@@ -34,12 +34,18 @@ function SourcesPage() {
   const [tags, setTags] = useState("");
   const [sheetUrl, setSheetUrl] = useState("");
   const [csvText, setCsvText] = useState("");
+  const [selectedRefIds, setSelectedRefIds] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(s.sources[0]?.id ?? null);
   const [drawerId, setDrawerId] = useState<string | null>(null);
   const selected = s.sources.find((x) => x.id === selectedId) ?? null;
   const drawerSrc = s.sources.find((x) => x.id === drawerId) ?? null;
-  const importedRefs = s.sources.filter((src) => src.source_type === "viralmaxing");
+  const importedRefs = s.sources
+    .filter((src) => src.source_type === "viralmaxing")
+    .sort(compareRefStrength);
   const importing = s.apiAction === "import_google_sheet_refs" || s.apiAction === "import_csv_refs";
+  const analyzingRefs =
+    s.apiAction === "analyze_refs_bulk" || s.apiAction === "analyze_selected_source";
+  const selectedImportedRefs = importedRefs.filter((src) => selectedRefIds.includes(src.id));
 
   function add() {
     if (!title.trim()) {
@@ -85,6 +91,36 @@ function SourcesPage() {
     if (s.apiMode !== "unavailable") {
       toast.success("CSV refs импортированы");
       setCsvText("");
+    }
+  }
+
+  function toggleRefSelection(id: string) {
+    setSelectedRefIds((current) =>
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
+    );
+  }
+
+  async function analyzeTop5() {
+    const sourceIds = importedRefs.slice(0, 5).map((src) => src.id);
+    if (sourceIds.length === 0) {
+      toast.error("Нет refs для Analysis");
+      return;
+    }
+
+    await s.analyzeSourcesBulkViaBackend(sourceIds);
+    if (s.apiMode !== "unavailable") toast.success(`Top ${sourceIds.length} отправлены в Analysis`);
+  }
+
+  async function analyzeSelected() {
+    if (selectedRefIds.length === 0) {
+      toast.error("Выберите refs");
+      return;
+    }
+
+    await s.analyzeSourcesBulkViaBackend(selectedRefIds);
+    if (s.apiMode !== "unavailable") {
+      toast.success(`Selected refs отправлены в Analysis: ${selectedRefIds.length}`);
+      setSelectedRefIds([]);
     }
   }
 
@@ -173,51 +209,100 @@ function SourcesPage() {
       {importedRefs.length === 0 ? (
         <EmptyState>ViralMaxing refs ещё не импортированы.</EmptyState>
       ) : (
-        <div className="tg-card overflow-x-auto">
-          <table className="w-full min-w-[760px] text-xs">
-            <thead className="text-muted-foreground">
-              <tr className="border-b border-border">
-                <th className="py-2 pr-3 text-left font-medium">url</th>
-                <th className="py-2 pr-3 text-left font-medium">platform</th>
-                <th className="py-2 pr-3 text-right font-medium">views</th>
-                <th className="py-2 pr-3 text-right font-medium">likes</th>
-                <th className="py-2 pr-3 text-right font-medium">comments</th>
-                <th className="py-2 pr-3 text-right font-medium">shares</th>
-                <th className="py-2 pr-3 text-right font-medium">engagement_rate</th>
-                <th className="py-2 pr-3 text-left font-medium">status</th>
-                <th className="py-2 text-right font-medium">action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {importedRefs.map((src) => (
-                <tr key={src.id} className="border-b border-border/70 last:border-b-0">
-                  <td className="max-w-[220px] py-2 pr-3">
-                    <span className="block truncate">{src.url ?? "—"}</span>
-                  </td>
-                  <td className="py-2 pr-3">{metric(src, "platform")}</td>
-                  <td className="py-2 pr-3 text-right tabular-nums">{metric(src, "views")}</td>
-                  <td className="py-2 pr-3 text-right tabular-nums">{metric(src, "likes")}</td>
-                  <td className="py-2 pr-3 text-right tabular-nums">{metric(src, "comments")}</td>
-                  <td className="py-2 pr-3 text-right tabular-nums">{metric(src, "shares")}</td>
-                  <td className="py-2 pr-3 text-right tabular-nums">
-                    {metric(src, "engagement_rate")}
-                  </td>
-                  <td className="py-2 pr-3">
-                    <StatusBadge status={src.status} />
-                  </td>
-                  <td className="py-2 text-right">
-                    <button
-                      onClick={() => void s.analyzeSourceViaBackend(src.id)}
-                      disabled={s.apiAction === "analyze_selected_source"}
-                      className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary/15 border border-primary/40 px-2.5 py-1.5 font-semibold text-primary disabled:opacity-60"
-                    >
-                      <Send className="size-3.5" />В Analysis
-                    </button>
-                  </td>
+        <div className="tg-card space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-xs text-muted-foreground">
+              Порядок: engagement_rate ↓, views ↓, shares ↓, comments ↓
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => void analyzeTop5()}
+                disabled={analyzingRefs}
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-60"
+              >
+                {analyzingRefs ? (
+                  <LoaderCircle className="size-3.5 animate-spin" />
+                ) : (
+                  <Send className="size-3.5" />
+                )}
+                Analyze top 5
+              </button>
+              <button
+                onClick={() => void analyzeSelected()}
+                disabled={analyzingRefs || selectedImportedRefs.length === 0}
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary/15 border border-primary/40 px-3 py-2 text-xs font-semibold text-primary disabled:opacity-60"
+              >
+                Analyze selected · {selectedImportedRefs.length}
+              </button>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1080px] text-xs">
+              <thead className="text-muted-foreground">
+                <tr className="border-b border-border">
+                  <th className="py-2 pr-3 text-left font-medium">select</th>
+                  <th className="py-2 pr-3 text-left font-medium">url</th>
+                  <th className="py-2 pr-3 text-left font-medium">platform</th>
+                  <th className="py-2 pr-3 text-left font-medium">author/account</th>
+                  <th className="py-2 pr-3 text-left font-medium">caption/title</th>
+                  <th className="py-2 pr-3 text-right font-medium">views</th>
+                  <th className="py-2 pr-3 text-right font-medium">likes</th>
+                  <th className="py-2 pr-3 text-right font-medium">comments</th>
+                  <th className="py-2 pr-3 text-right font-medium">shares/reposts</th>
+                  <th className="py-2 pr-3 text-right font-medium">saves</th>
+                  <th className="py-2 pr-3 text-right font-medium">engagement_rate</th>
+                  <th className="py-2 pr-3 text-left font-medium">status</th>
+                  <th className="py-2 text-right font-medium">action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {importedRefs.map((src) => (
+                  <tr key={src.id} className="border-b border-border/70 last:border-b-0">
+                    <td className="py-2 pr-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedRefIds.includes(src.id)}
+                        onChange={() => toggleRefSelection(src.id)}
+                        aria-label={`Выбрать ${src.title}`}
+                        className="size-4 accent-primary"
+                      />
+                    </td>
+                    <td className="max-w-[220px] py-2 pr-3">
+                      <span className="block truncate">{src.url ?? "—"}</span>
+                    </td>
+                    <td className="py-2 pr-3">{metric(src, "platform")}</td>
+                    <td className="max-w-[120px] py-2 pr-3">
+                      <span className="block truncate">{metric(src, "author")}</span>
+                    </td>
+                    <td className="max-w-[220px] py-2 pr-3">
+                      <span className="block truncate">{metric(src, "caption")}</span>
+                    </td>
+                    <td className="py-2 pr-3 text-right tabular-nums">{metric(src, "views")}</td>
+                    <td className="py-2 pr-3 text-right tabular-nums">{metric(src, "likes")}</td>
+                    <td className="py-2 pr-3 text-right tabular-nums">{metric(src, "comments")}</td>
+                    <td className="py-2 pr-3 text-right tabular-nums">{metric(src, "shares")}</td>
+                    <td className="py-2 pr-3 text-right tabular-nums">{metric(src, "saves")}</td>
+                    <td className="py-2 pr-3 text-right tabular-nums">
+                      {metric(src, "engagement_rate")}
+                    </td>
+                    <td className="py-2 pr-3">
+                      <StatusBadge status={src.status} />
+                    </td>
+                    <td className="py-2 text-right">
+                      <button
+                        onClick={() => void s.analyzeSourceViaBackend(src.id)}
+                        disabled={analyzingRefs}
+                        className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary/15 border border-primary/40 px-2.5 py-1.5 font-semibold text-primary disabled:opacity-60"
+                      >
+                        <Send className="size-3.5" />В Analysis
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -448,4 +533,23 @@ function metric(source: Source, key: string): string {
     return value;
   }
   return "—";
+}
+
+function numericMetric(source: Source, key: string): number {
+  const value = source.raw_payload?.[key];
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value.replace("%", "").replace(",", ".").trim());
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return 0;
+}
+
+function compareRefStrength(a: Source, b: Source): number {
+  return (
+    numericMetric(b, "engagement_rate") - numericMetric(a, "engagement_rate") ||
+    numericMetric(b, "views") - numericMetric(a, "views") ||
+    numericMetric(b, "shares") - numericMetric(a, "shares") ||
+    numericMetric(b, "comments") - numericMetric(a, "comments")
+  );
 }
