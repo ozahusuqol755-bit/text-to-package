@@ -22,9 +22,14 @@ interface ApiEnvelope<T> {
 interface CreateSourcePayload {
   title: string;
   url?: string;
-  source_type: "url" | "text" | "manual";
+  source_type: "url" | "text" | "manual" | "viralmaxing";
   raw_text?: string;
   tags?: string[];
+}
+
+interface ImportSourcesResponse {
+  imported_count: number;
+  sources: Source[];
 }
 
 async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
@@ -68,6 +73,10 @@ async function postData<T>(path: string, body?: unknown): Promise<T> {
 export const backendApi = {
   getSources: () => getData<Source[]>("/api/sources"),
   createSource: (payload: CreateSourcePayload) => postData<Source>("/api/sources", payload),
+  importGoogleSheetSources: (url: string) =>
+    postData<ImportSourcesResponse>("/api/sources/import/google-sheet", { url }),
+  importCsvSources: (csv: string) =>
+    postData<ImportSourcesResponse>("/api/sources/import/csv", { csv }),
   sourceToAnalysis: (sourceId: string) =>
     postData<Analysis>(`/api/sources/${sourceId}/to-analysis`),
 

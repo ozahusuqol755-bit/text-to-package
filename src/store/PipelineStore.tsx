@@ -203,6 +203,9 @@ interface ContextValue extends State {
   demoSendLatestPackToReview: () => Promise<void>;
   demoApproveLatestPack: () => Promise<void>;
   demoRejectLatestPack: () => Promise<void>;
+  importGoogleSheetRefs: (url: string) => Promise<void>;
+  importCsvRefs: (csv: string) => Promise<void>;
+  analyzeSourceViaBackend: (sourceId: string) => Promise<void>;
   // sources
   addSource: (input: {
     title: string;
@@ -259,7 +262,11 @@ function apiErrorMessage(error: unknown): string {
 }
 
 function latestSourceForAnalysis(sources: Source[]): Source | undefined {
-  return sources.find((source) => source.status === "new") ?? sources[0];
+  return (
+    sources.find((source) => source.status === "new") ??
+    sources.find((source) => source.status === "imported" || source.status === "uploaded") ??
+    sources[0]
+  );
 }
 
 function latestPackForReview(packs: ContentPack[]): ContentPack | undefined {
@@ -421,6 +428,24 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
         if (!pack) throw new Error("Нет контент-пакета для reject.");
         await backendApi.rejectPack(pack.id, "Rejected from frontend demo flow");
         return "Пакет отклонён";
+      });
+
+    const importGoogleSheetRefs = (url: string) =>
+      runBackendAction("import_google_sheet_refs", async () => {
+        const result = await backendApi.importGoogleSheetSources(url);
+        return `Импортировано refs: ${result.imported_count}`;
+      });
+
+    const importCsvRefs = (csv: string) =>
+      runBackendAction("import_csv_refs", async () => {
+        const result = await backendApi.importCsvSources(csv);
+        return `Импортировано refs: ${result.imported_count}`;
+      });
+
+    const analyzeSourceViaBackend = (sourceId: string) =>
+      runBackendAction("analyze_selected_source", async () => {
+        const analysis = await backendApi.sourceToAnalysis(sourceId);
+        return `Ref отправлен в Analysis: ${analysis.id}`;
       });
 
     // ── SOURCES ─────────────────────────────────────────────────────
@@ -941,6 +966,9 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
       demoSendLatestPackToReview,
       demoApproveLatestPack,
       demoRejectLatestPack,
+      importGoogleSheetRefs,
+      importCsvRefs,
+      analyzeSourceViaBackend,
       addSource,
       parseSource,
       rejectSource,

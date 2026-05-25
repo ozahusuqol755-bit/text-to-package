@@ -5,8 +5,8 @@ import { usePipeline } from "@/store/PipelineStore";
 import { StageHeader, ToolsRow, SectionTitle, EmptyState } from "@/components/stage/StageHeader";
 import { StatusBadge } from "@/components/stage/StatusBadge";
 import { DetailDrawer } from "@/components/DetailDrawer";
-import type { SourceType } from "@/types/pipeline";
-import { ArrowRight, Plus, Play, X, Send, Info } from "lucide-react";
+import type { Source, SourceType } from "@/types/pipeline";
+import { ArrowRight, Plus, Play, X, Send, Info, Upload, LoaderCircle } from "lucide-react";
 
 export const Route = createFileRoute("/sources")({ component: SourcesPage });
 
@@ -22,6 +22,7 @@ const TYPE_LABEL: Record<SourceType, string> = {
   url: "url",
   text: "текст",
   manual: "manual",
+  viralmaxing: "ViralMaxing",
 };
 
 function SourcesPage() {
@@ -31,10 +32,14 @@ function SourcesPage() {
   const [url, setUrl] = useState("");
   const [type, setType] = useState<SourceType>("competitor");
   const [tags, setTags] = useState("");
+  const [sheetUrl, setSheetUrl] = useState("");
+  const [csvText, setCsvText] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(s.sources[0]?.id ?? null);
   const [drawerId, setDrawerId] = useState<string | null>(null);
   const selected = s.sources.find((x) => x.id === selectedId) ?? null;
   const drawerSrc = s.sources.find((x) => x.id === drawerId) ?? null;
+  const importedRefs = s.sources.filter((src) => src.source_type === "viralmaxing");
+  const importing = s.apiAction === "import_google_sheet_refs" || s.apiAction === "import_csv_refs";
 
   function add() {
     if (!title.trim()) {
@@ -55,6 +60,32 @@ function SourcesPage() {
     setUrl("");
     setTags("");
     setModalOpen(false);
+  }
+
+  async function importGoogleSheet() {
+    if (!sheetUrl.trim()) {
+      toast.error("Укажите Google Sheets CSV URL");
+      return;
+    }
+
+    await s.importGoogleSheetRefs(sheetUrl.trim());
+    if (s.apiMode !== "unavailable") {
+      toast.success("Refs импортированы");
+      setSheetUrl("");
+    }
+  }
+
+  async function importCsv() {
+    if (!csvText.trim()) {
+      toast.error("Вставьте CSV из ViralMaxing");
+      return;
+    }
+
+    await s.importCsvRefs(csvText);
+    if (s.apiMode !== "unavailable") {
+      toast.success("CSV refs импортированы");
+      setCsvText("");
+    }
   }
 
   return (
@@ -83,6 +114,112 @@ function SourcesPage() {
           "Postgres",
         ]}
       />
+
+      <SectionTitle>Импорт ViralMaxing refs</SectionTitle>
+      <div className="tg-card space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <div className="text-sm font-semibold">Google Sheets → Sources / Refs</div>
+            <div className="text-xs text-muted-foreground">
+              Строки таблицы сохраняются как отдельные refs перед Analysis.
+            </div>
+          </div>
+          <span className="badge badge-info">source_type=viralmaxing</span>
+        </div>
+
+        <div className="flex gap-2">
+          <input
+            value={sheetUrl}
+            onChange={(e) => setSheetUrl(e.target.value)}
+            placeholder="Google Sheets URL или public CSV export URL"
+            className="min-w-0 flex-1 bg-black/30 border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary"
+          />
+          <button
+            onClick={() => void importGoogleSheet()}
+            disabled={importing}
+            className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+          >
+            {importing ? (
+              <LoaderCircle className="size-4 animate-spin" />
+            ) : (
+              <Upload className="size-4" />
+            )}
+            Import
+          </button>
+        </div>
+
+        <textarea
+          value={csvText}
+          onChange={(e) => setCsvText(e.target.value)}
+          placeholder="CSV fallback: url,platform,views,likes,comments,shares,saves,engagement_rate,author,caption,published_at,detected_at,niche"
+          rows={3}
+          className="w-full bg-black/30 border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary"
+        />
+        <button
+          onClick={() => void importCsv()}
+          disabled={importing}
+          className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary/15 border border-primary/40 px-3 py-2.5 text-sm font-semibold text-primary disabled:opacity-60"
+        >
+          {importing ? (
+            <LoaderCircle className="size-4 animate-spin" />
+          ) : (
+            <Upload className="size-4" />
+          )}
+          Import CSV fallback
+        </button>
+      </div>
+
+      <SectionTitle>Импортированные refs</SectionTitle>
+      {importedRefs.length === 0 ? (
+        <EmptyState>ViralMaxing refs ещё не импортированы.</EmptyState>
+      ) : (
+        <div className="tg-card overflow-x-auto">
+          <table className="w-full min-w-[760px] text-xs">
+            <thead className="text-muted-foreground">
+              <tr className="border-b border-border">
+                <th className="py-2 pr-3 text-left font-medium">url</th>
+                <th className="py-2 pr-3 text-left font-medium">platform</th>
+                <th className="py-2 pr-3 text-right font-medium">views</th>
+                <th className="py-2 pr-3 text-right font-medium">likes</th>
+                <th className="py-2 pr-3 text-right font-medium">comments</th>
+                <th className="py-2 pr-3 text-right font-medium">shares</th>
+                <th className="py-2 pr-3 text-right font-medium">engagement_rate</th>
+                <th className="py-2 pr-3 text-left font-medium">status</th>
+                <th className="py-2 text-right font-medium">action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {importedRefs.map((src) => (
+                <tr key={src.id} className="border-b border-border/70 last:border-b-0">
+                  <td className="max-w-[220px] py-2 pr-3">
+                    <span className="block truncate">{src.url ?? "—"}</span>
+                  </td>
+                  <td className="py-2 pr-3">{metric(src, "platform")}</td>
+                  <td className="py-2 pr-3 text-right tabular-nums">{metric(src, "views")}</td>
+                  <td className="py-2 pr-3 text-right tabular-nums">{metric(src, "likes")}</td>
+                  <td className="py-2 pr-3 text-right tabular-nums">{metric(src, "comments")}</td>
+                  <td className="py-2 pr-3 text-right tabular-nums">{metric(src, "shares")}</td>
+                  <td className="py-2 pr-3 text-right tabular-nums">
+                    {metric(src, "engagement_rate")}
+                  </td>
+                  <td className="py-2 pr-3">
+                    <StatusBadge status={src.status} />
+                  </td>
+                  <td className="py-2 text-right">
+                    <button
+                      onClick={() => void s.analyzeSourceViaBackend(src.id)}
+                      disabled={s.apiAction === "analyze_selected_source"}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary/15 border border-primary/40 px-2.5 py-1.5 font-semibold text-primary disabled:opacity-60"
+                    >
+                      <Send className="size-3.5" />В Analysis
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <SectionTitle>Очередь источников</SectionTitle>
       {s.sources.length === 0 ? (
@@ -300,4 +437,15 @@ function Field({ k, v }: { k: string; v: string }) {
       <span className="text-foreground/90 break-words">{v}</span>
     </div>
   );
+}
+
+function metric(source: Source, key: string): string {
+  const value = source.raw_payload?.[key];
+  if (typeof value === "number") {
+    return Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 }).format(value);
+  }
+  if (typeof value === "string" && value.trim()) {
+    return value;
+  }
+  return "—";
 }

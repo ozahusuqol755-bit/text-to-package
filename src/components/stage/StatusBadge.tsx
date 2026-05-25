@@ -9,6 +9,8 @@ import type {
 const map: Record<string, { cls: string; label: string }> = {
   // sources
   new: { cls: "badge-new", label: "Новый" },
+  imported: { cls: "badge-info", label: "Импортирован" },
+  uploaded: { cls: "badge-info", label: "Загружен" },
   parsed: { cls: "badge-parsed", label: "Распарсен" },
   ready_for_analysis: { cls: "badge-info", label: "В анализ" },
   // analyses / ideas

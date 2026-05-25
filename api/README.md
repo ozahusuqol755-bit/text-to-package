@@ -1,7 +1,7 @@
 # AI Content Factory API
 
-Minimal backend API skeleton for the next MVP stage. The frontend is not wired
-to this API yet.
+Minimal backend API for the closed-demo MVP flow. The frontend can call these
+endpoints through `VITE_API_URL`.
 
 ## Stack
 
@@ -34,6 +34,8 @@ been applied, they return `database_schema_missing`.
 - `GET /health`
 - `GET /api/sources`
 - `POST /api/sources`
+- `POST /api/sources/import/google-sheet`
+- `POST /api/sources/import/csv`
 - `GET /api/analyses`
 - `POST /api/sources/:id/to-analysis`
 - `GET /api/ideas`
@@ -57,6 +59,29 @@ curl -sS -X POST http://127.0.0.1:4000/api/sources \
     "source_type": "url",
     "url": "https://example.com",
     "tags": ["demo"]
+  }'
+
+curl -sS http://127.0.0.1:4000/api/sources
+curl -sS http://127.0.0.1:4000/api/logs
+```
+
+## ViralMaxing Refs Import
+
+Import ViralMaxing rows into `sources` first. Each CSV row becomes one
+`source_type = viralmaxing` source with `status = imported`; metrics such as
+`views`, `likes`, `comments`, `shares`, `saves`, `engagement_rate`, `platform`,
+`author`, `caption`, `published_at`, `detected_at`, and `niche` are stored in
+`raw_payload`.
+
+```bash
+curl -sS -X POST http://127.0.0.1:4000/api/sources/import/google-sheet \
+  -H 'content-type: application/json' \
+  -d '{"url":"https://docs.google.com/spreadsheets/d/<sheet-id>/edit?gid=0"}'
+
+curl -sS -X POST http://127.0.0.1:4000/api/sources/import/csv \
+  -H 'content-type: application/json' \
+  -d '{
+    "csv": "url,platform,views,likes,comments,shares,saves,engagement_rate,author,caption\nhttps://example.com,TikTok,1000,80,12,9,5,10.6,@account,Winning hook"
   }'
 
 curl -sS http://127.0.0.1:4000/api/sources

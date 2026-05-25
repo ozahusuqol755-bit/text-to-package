@@ -7,11 +7,19 @@ export type SourceType =
   | "screenshot"
   | "metric"
   | "research"
+  | "viralmaxing"
   | "url"
   | "text"
   | "manual";
 
-export type SourceStatus = "new" | "parsed" | "failed" | "rejected" | "ready_for_analysis";
+export type SourceStatus =
+  | "new"
+  | "imported"
+  | "uploaded"
+  | "parsed"
+  | "failed"
+  | "rejected"
+  | "ready_for_analysis";
 
 export interface Source {
   id: string;
@@ -20,6 +28,7 @@ export interface Source {
   source_type: SourceType;
   status: SourceStatus;
   raw_text?: string;
+  raw_payload?: Record<string, unknown>;
   summary?: string;
   hooks?: string[];
   cta?: string;

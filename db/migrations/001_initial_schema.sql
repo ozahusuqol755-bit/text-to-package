@@ -18,15 +18,17 @@ create table sources (
       'screenshot',
       'metric',
       'research',
+      'viralmaxing',
       'url',
       'text',
       'manual'
     )
   ),
   status text not null default 'new' check (
-    status in ('new', 'parsed', 'failed', 'rejected', 'ready_for_analysis')
+    status in ('new', 'imported', 'uploaded', 'parsed', 'failed', 'rejected', 'ready_for_analysis')
   ),
   raw_text text,
+  raw_payload jsonb not null default '{}'::jsonb,
   summary text,
   hooks jsonb not null default '[]'::jsonb,
   cta text,
@@ -71,6 +73,7 @@ alter table sources add constraint sources_source_type_check check (
     'screenshot',
     'metric',
     'research',
+    'viralmaxing',
     'url',
     'text',
     'manual'
@@ -287,6 +290,7 @@ before update on tools
 for each row execute function set_updated_at();
 
 create index idx_sources_status on sources(status);
+create index idx_sources_source_type on sources(source_type);
 
 create index idx_analyses_status on analyses(risk_status);
 create index idx_analyses_decision on analyses(decision);
