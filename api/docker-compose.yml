@@ -23,8 +23,8 @@ services:
       AI_IMAGE_MODEL: ${AI_IMAGE_MODEL:-}
       AI_VIDEO_API_KEY: ${AI_VIDEO_API_KEY:-}
       AI_VIDEO_MODEL: ${AI_VIDEO_MODEL:-}
-    expose:
-      - "4000"
+    ports:
+      - "127.0.0.1:4000:4000"
     depends_on:
       postgres:
         condition: service_healthy
