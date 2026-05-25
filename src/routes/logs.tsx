@@ -62,6 +62,10 @@ const ACTION_LABEL: Record<string, string> = {
   retry: "повтор публикации",
   fail: "ошибка публикации",
   signal: "сигнал в анализ",
+  ai_request_started: "AI запрос начат",
+  ai_request_finished: "AI запрос завершён",
+  ai_error: "AI ошибка",
+  ai_fallback_used: "fallback AI",
 };
 
 const LEVEL_TO_RESULT: Record<string, LogResult> = {

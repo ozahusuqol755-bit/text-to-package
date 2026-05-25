@@ -38,6 +38,49 @@ interface BulkAnalysisResponse {
   errors: Array<{ source_id: string; error: string }>;
 }
 
+export interface AiRoleStatus {
+  configured: boolean;
+  model: string | null;
+}
+
+export interface AiStatus {
+  provider: string;
+  mode: "configured" | "fallback";
+  baseUrlConfigured: boolean;
+  roles: Record<"default" | "fast" | "smart" | "write" | "image" | "video", AiRoleStatus>;
+}
+
+export interface AiUsageRecord {
+  id: string;
+  task_type: string;
+  provider: string;
+  model_used: string | null;
+  key_alias: string;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  total_tokens: number | null;
+  estimated_cost: string | number | null;
+  status: "success" | "error" | "fallback";
+  error_message: string | null;
+  created_at: string;
+}
+
+export interface AiUsageSummaryBucket {
+  count: number;
+  total_tokens: number | null;
+  estimated_cost: number | null;
+}
+
+export interface AiUsageResponse {
+  records: AiUsageRecord[];
+  summary: {
+    by_task_type: Record<string, AiUsageSummaryBucket>;
+    by_key_alias: Record<string, AiUsageSummaryBucket>;
+    total_tokens: number | null;
+    estimated_cost: number | null;
+  };
+}
+
 async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const hasBody = init?.body !== undefined;
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -77,6 +120,9 @@ async function postData<T>(path: string, body?: unknown): Promise<T> {
 }
 
 export const backendApi = {
+  getAiStatus: () => getData<AiStatus>("/api/ai/status"),
+  getAiUsage: () => getData<AiUsageResponse>("/api/ai/usage"),
+
   getSources: () => getData<Source[]>("/api/sources"),
   createSource: (payload: CreateSourcePayload) => postData<Source>("/api/sources", payload),
   importGoogleSheetSources: (url: string) =>

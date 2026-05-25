@@ -10,6 +10,7 @@ import {
   BarChart3,
   Wrench,
   ScrollText,
+  Bot,
 } from "lucide-react";
 
 const nav = [
@@ -22,6 +23,7 @@ const nav = [
   { to: "/publish", label: "Публикация", Icon: Rocket },
   { to: "/metrics", label: "Метрики", Icon: BarChart3 },
   { to: "/tools", label: "Инструменты", Icon: Wrench },
+  { to: "/ai", label: "AI", Icon: Bot },
   { to: "/logs", label: "Логи", Icon: ScrollText },
 ] as const;
 

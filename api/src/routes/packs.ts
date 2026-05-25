@@ -2,8 +2,9 @@ import type { FastifyInstance } from "fastify";
 import type { PoolClient } from "pg";
 import { z } from "zod";
 import { query, transaction } from "../db.js";
-import { isAiConfigured, requestStructuredJson } from "../lib/ai.js";
+import { isAiConfigured, requestStructuredJsonWithUsage, resolveAiTaskConfig } from "../lib/ai.js";
 import { writeAuditLog } from "../lib/auditLog.js";
+import { writeAiUsageLog, type AiUsageLogInput } from "../lib/aiUsage.js";
 import { canApprovePack } from "../lib/guards.js";
 import {
   buildDeterministicContentPack,
@@ -126,6 +127,15 @@ const AiContentPackPayloadSchema = z.object({
   cta: z.string().min(1),
   checklist: z.array(z.string().min(1)).min(1),
 });
+
+interface AiRouteAuditAction {
+  action: "ai_request_started" | "ai_request_finished" | "ai_fallback_used" | "ai_error";
+  result: "success" | "error";
+  message: string;
+  level: "info" | "success" | "error";
+  metadata?: Record<string, unknown>;
+  usage: AiUsageLogInput;
+}
 
 function packColumns(): string {
   return `
@@ -253,40 +263,59 @@ Return exactly this JSON shape:
 
 async function buildContentPackInput(input: ContentPackForIdeaInput): Promise<{
   packInput: DeterministicContentPackInput;
-  auditActions: Array<{
-    action: "ai_request_started" | "ai_request_finished" | "ai_fallback_used" | "ai_error";
-    result: "success" | "error";
-    message: string;
-    level: "info" | "success" | "error";
-    metadata?: Record<string, unknown>;
-  }>;
+  auditActions: AiRouteAuditAction[];
 }> {
-  const auditActions: Array<{
-    action: "ai_request_started" | "ai_request_finished" | "ai_fallback_used" | "ai_error";
-    result: "success" | "error";
-    message: string;
-    level: "info" | "success" | "error";
-    metadata?: Record<string, unknown>;
-  }> = [];
+  const auditActions: AiRouteAuditAction[] = [];
+  const taskType = "content_pack";
+  const aiConfig = resolveAiTaskConfig(taskType);
 
-  if (isAiConfigured()) {
+  if (isAiConfigured(taskType)) {
     auditActions.push({
       action: "ai_request_started",
       result: "success",
       message: "AI content pack request started",
       level: "info",
-      metadata: { provider: "openai-compatible" },
+      metadata: {
+        task_type: taskType,
+        provider: aiConfig.provider,
+        key_alias: aiConfig.keyAlias,
+        model_used: aiConfig.model,
+      },
+      usage: {
+        taskType,
+        provider: aiConfig.provider,
+        modelUsed: aiConfig.model,
+        keyAlias: aiConfig.keyAlias,
+        status: "success",
+      },
     });
 
     try {
-      const aiResult = await requestStructuredJson(buildContentPackPrompt(input));
-      const payload = AiContentPackPayloadSchema.parse(aiResult);
+      const aiResult = await requestStructuredJsonWithUsage(buildContentPackPrompt(input), {
+        taskType,
+      });
+      const payload = AiContentPackPayloadSchema.parse(aiResult.data);
       auditActions.push({
         action: "ai_request_finished",
         result: "success",
         message: "AI content pack request finished",
         level: "success",
-        metadata: { provider: "openai-compatible" },
+        metadata: {
+          task_type: taskType,
+          provider: aiResult.provider,
+          key_alias: aiResult.keyAlias,
+          model_used: aiResult.modelUsed,
+        },
+        usage: {
+          taskType,
+          provider: aiResult.provider,
+          modelUsed: aiResult.modelUsed,
+          keyAlias: aiResult.keyAlias,
+          inputTokens: aiResult.inputTokens,
+          outputTokens: aiResult.outputTokens,
+          totalTokens: aiResult.totalTokens,
+          status: "success",
+        },
       });
       return {
         packInput: contentPackFromPayload(
@@ -303,7 +332,21 @@ async function buildContentPackInput(input: ContentPackForIdeaInput): Promise<{
         result: "error",
         message: "AI content pack generation failed; deterministic fallback used",
         level: "error",
-        metadata: { error: error instanceof Error ? error.message : String(error) },
+        metadata: {
+          task_type: taskType,
+          provider: aiConfig.provider,
+          key_alias: aiConfig.keyAlias,
+          model_used: aiConfig.model,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        usage: {
+          taskType,
+          provider: aiConfig.provider,
+          modelUsed: aiConfig.model,
+          keyAlias: aiConfig.keyAlias,
+          status: "error",
+          errorMessage: error instanceof Error ? error.message : String(error),
+        },
       });
     }
   }
@@ -313,7 +356,20 @@ async function buildContentPackInput(input: ContentPackForIdeaInput): Promise<{
     result: "success",
     message: "Deterministic content pack fallback used",
     level: "info",
-    metadata: { reason: isAiConfigured() ? "ai_error" : "ai_not_configured" },
+    metadata: {
+      task_type: taskType,
+      provider: aiConfig.provider,
+      key_alias: aiConfig.keyAlias,
+      model_used: aiConfig.model,
+      reason: isAiConfigured(taskType) ? "ai_error" : "ai_not_configured",
+    },
+    usage: {
+      taskType,
+      provider: aiConfig.provider,
+      modelUsed: aiConfig.model,
+      keyAlias: aiConfig.keyAlias,
+      status: "fallback",
+    },
   });
 
   return { packInput: buildDeterministicContentPack(input), auditActions };
@@ -929,6 +985,10 @@ export async function packRoutes(app: FastifyInstance): Promise<void> {
           },
           client,
         );
+
+        if (auditAction.action !== "ai_request_started") {
+          await writeAiUsageLog(auditAction.usage, client);
+        }
       }
 
       return { pack, assets: [asset], review_checks: checks };

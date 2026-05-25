@@ -2,8 +2,14 @@ import type { FastifyInstance } from "fastify";
 import type { PoolClient } from "pg";
 import { z } from "zod";
 import { transaction } from "../db.js";
-import { isAiConfigured, requestStructuredJson } from "../lib/ai.js";
+import {
+  isAiConfigured,
+  requestStructuredJsonWithUsage,
+  resolveAiTaskConfig,
+  type AiTaskType,
+} from "../lib/ai.js";
 import { writeAuditLog } from "../lib/auditLog.js";
+import { writeAiUsageLog, type AiUsageLogInput } from "../lib/aiUsage.js";
 import {
   buildDeterministicViralAnalysis,
   type DeterministicAnalysisInput,
@@ -64,6 +70,15 @@ const AiAnalysisPayloadSchema = z.object({
   content_opportunities: z.array(z.string().min(1)).default([]),
   risks: z.array(z.string().min(1)).default([]),
 });
+
+interface AiRouteAuditAction {
+  action: "ai_request_started" | "ai_request_finished" | "ai_fallback_used" | "ai_error";
+  result: "success" | "error";
+  message: string;
+  level: "info" | "success" | "error";
+  metadata?: Record<string, unknown>;
+  usage: AiUsageLogInput;
+}
 
 function analysisColumns(): string {
   return `
@@ -149,42 +164,63 @@ Return exactly this JSON shape:
 `;
 }
 
-async function buildAnalysisInput(source: SourceRow): Promise<{
+async function buildAnalysisInput(
+  source: SourceRow,
+  taskType: AiTaskType,
+): Promise<{
   input: DeterministicAnalysisInput;
-  auditActions: Array<{
-    action: "ai_request_started" | "ai_request_finished" | "ai_fallback_used" | "ai_error";
-    result: "success" | "error";
-    message: string;
-    level: "info" | "success" | "error";
-    metadata?: Record<string, unknown>;
-  }>;
+  auditActions: AiRouteAuditAction[];
 }> {
-  const auditActions: Array<{
-    action: "ai_request_started" | "ai_request_finished" | "ai_fallback_used" | "ai_error";
-    result: "success" | "error";
-    message: string;
-    level: "info" | "success" | "error";
-    metadata?: Record<string, unknown>;
-  }> = [];
+  const auditActions: AiRouteAuditAction[] = [];
+  const aiConfig = resolveAiTaskConfig(taskType);
 
-  if (isAiConfigured()) {
+  if (isAiConfigured(taskType)) {
     auditActions.push({
       action: "ai_request_started",
       result: "success",
       message: "AI analysis request started",
       level: "info",
-      metadata: { provider: "openai-compatible" },
+      metadata: {
+        task_type: taskType,
+        provider: aiConfig.provider,
+        key_alias: aiConfig.keyAlias,
+        model_used: aiConfig.model,
+      },
+      usage: {
+        taskType,
+        provider: aiConfig.provider,
+        modelUsed: aiConfig.model,
+        keyAlias: aiConfig.keyAlias,
+        status: "success",
+      },
     });
 
     try {
-      const aiResult = await requestStructuredJson(buildAnalysisPrompt(source));
-      const payload = AiAnalysisPayloadSchema.parse(aiResult);
+      const aiResult = await requestStructuredJsonWithUsage(buildAnalysisPrompt(source), {
+        taskType,
+      });
+      const payload = AiAnalysisPayloadSchema.parse(aiResult.data);
       auditActions.push({
         action: "ai_request_finished",
         result: "success",
         message: "AI analysis request finished",
         level: "success",
-        metadata: { provider: "openai-compatible" },
+        metadata: {
+          task_type: taskType,
+          provider: aiResult.provider,
+          key_alias: aiResult.keyAlias,
+          model_used: aiResult.modelUsed,
+        },
+        usage: {
+          taskType,
+          provider: aiResult.provider,
+          modelUsed: aiResult.modelUsed,
+          keyAlias: aiResult.keyAlias,
+          inputTokens: aiResult.inputTokens,
+          outputTokens: aiResult.outputTokens,
+          totalTokens: aiResult.totalTokens,
+          status: "success",
+        },
       });
       return { input: analysisFromPayload(payload), auditActions };
     } catch (error) {
@@ -193,7 +229,21 @@ async function buildAnalysisInput(source: SourceRow): Promise<{
         result: "error",
         message: "AI analysis failed; deterministic fallback used",
         level: "error",
-        metadata: { error: error instanceof Error ? error.message : String(error) },
+        metadata: {
+          task_type: taskType,
+          provider: aiConfig.provider,
+          key_alias: aiConfig.keyAlias,
+          model_used: aiConfig.model,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        usage: {
+          taskType,
+          provider: aiConfig.provider,
+          modelUsed: aiConfig.model,
+          keyAlias: aiConfig.keyAlias,
+          status: "error",
+          errorMessage: error instanceof Error ? error.message : String(error),
+        },
       });
     }
   }
@@ -203,7 +253,20 @@ async function buildAnalysisInput(source: SourceRow): Promise<{
     result: "success",
     message: "Deterministic ViralMaxing analysis fallback used",
     level: "info",
-    metadata: { reason: isAiConfigured() ? "ai_error" : "ai_not_configured" },
+    metadata: {
+      task_type: taskType,
+      provider: aiConfig.provider,
+      key_alias: aiConfig.keyAlias,
+      model_used: aiConfig.model,
+      reason: isAiConfigured(taskType) ? "ai_error" : "ai_not_configured",
+    },
+    usage: {
+      taskType,
+      provider: aiConfig.provider,
+      modelUsed: aiConfig.model,
+      keyAlias: aiConfig.keyAlias,
+      status: "fallback",
+    },
   });
 
   return { input: buildDeterministicViralAnalysis(source), auditActions };
@@ -213,6 +276,7 @@ async function createAnalysisFromSourceId(
   client: PoolClient,
   sourceId: string,
   actor: string | undefined,
+  taskType: AiTaskType,
 ): Promise<AnalysisRow | null> {
   const sourceResult = await client.query<SourceRow>(
     `
@@ -237,7 +301,7 @@ async function createAnalysisFromSourceId(
     return null;
   }
 
-  const { input, auditActions } = await buildAnalysisInput(source);
+  const { input, auditActions } = await buildAnalysisInput(source, taskType);
   const analysisResult = await client.query<AnalysisRow>(
     `
       insert into analyses (
@@ -322,6 +386,10 @@ async function createAnalysisFromSourceId(
       },
       client,
     );
+
+    if (auditAction.action !== "ai_request_started") {
+      await writeAiUsageLog(auditAction.usage, client);
+    }
   }
 
   return createdAnalysis;
@@ -356,7 +424,7 @@ export async function analysisRoutes(app: FastifyInstance): Promise<void> {
 
     const actor = request.actor?.username ?? request.actor?.id;
     const analysis = await transaction(async (client) => {
-      return createAnalysisFromSourceId(client, parsedParams.data.id, actor);
+      return createAnalysisFromSourceId(client, parsedParams.data.id, actor, "analysis");
     });
 
     if (!analysis) {
@@ -398,7 +466,7 @@ export async function analysisRoutes(app: FastifyInstance): Promise<void> {
     for (const sourceId of sourceIds) {
       try {
         const created = await transaction(async (client) =>
-          createAnalysisFromSourceId(client, sourceId, actor),
+          createAnalysisFromSourceId(client, sourceId, actor, "bulk_analysis"),
         );
 
         if (created) {

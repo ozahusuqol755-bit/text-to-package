@@ -1,8 +1,9 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { transaction } from "../db.js";
-import { isAiConfigured, requestStructuredJson } from "../lib/ai.js";
+import { isAiConfigured, requestStructuredJsonWithUsage, resolveAiTaskConfig } from "../lib/ai.js";
 import { writeAuditLog } from "../lib/auditLog.js";
+import { writeAiUsageLog, type AiUsageLogInput } from "../lib/aiUsage.js";
 import {
   buildDeterministicIdea,
   type AnalysisForIdeaInput,
@@ -62,6 +63,15 @@ const AiIdeaPayloadSchema = z.object({
   adaptation_note: z.string().min(1),
   risk_to_check: z.string().min(1),
 });
+
+interface AiRouteAuditAction {
+  action: "ai_request_started" | "ai_request_finished" | "ai_fallback_used" | "ai_error";
+  result: "success" | "error";
+  message: string;
+  level: "info" | "success" | "error";
+  metadata?: Record<string, unknown>;
+  usage: AiUsageLogInput;
+}
 
 function ideaColumns(): string {
   return `
@@ -161,40 +171,59 @@ Return exactly this JSON shape:
 
 async function buildIdeaInput(analysis: AnalysisRow): Promise<{
   input: DeterministicIdeaInput;
-  auditActions: Array<{
-    action: "ai_request_started" | "ai_request_finished" | "ai_fallback_used" | "ai_error";
-    result: "success" | "error";
-    message: string;
-    level: "info" | "success" | "error";
-    metadata?: Record<string, unknown>;
-  }>;
+  auditActions: AiRouteAuditAction[];
 }> {
-  const auditActions: Array<{
-    action: "ai_request_started" | "ai_request_finished" | "ai_fallback_used" | "ai_error";
-    result: "success" | "error";
-    message: string;
-    level: "info" | "success" | "error";
-    metadata?: Record<string, unknown>;
-  }> = [];
+  const auditActions: AiRouteAuditAction[] = [];
+  const taskType = "idea";
+  const aiConfig = resolveAiTaskConfig(taskType);
 
-  if (isAiConfigured()) {
+  if (isAiConfigured(taskType)) {
     auditActions.push({
       action: "ai_request_started",
       result: "success",
       message: "AI idea request started",
       level: "info",
-      metadata: { provider: "openai-compatible" },
+      metadata: {
+        task_type: taskType,
+        provider: aiConfig.provider,
+        key_alias: aiConfig.keyAlias,
+        model_used: aiConfig.model,
+      },
+      usage: {
+        taskType,
+        provider: aiConfig.provider,
+        modelUsed: aiConfig.model,
+        keyAlias: aiConfig.keyAlias,
+        status: "success",
+      },
     });
 
     try {
-      const aiResult = await requestStructuredJson(buildIdeaPrompt(analysis));
-      const payload = AiIdeaPayloadSchema.parse(aiResult);
+      const aiResult = await requestStructuredJsonWithUsage(buildIdeaPrompt(analysis), {
+        taskType,
+      });
+      const payload = AiIdeaPayloadSchema.parse(aiResult.data);
       auditActions.push({
         action: "ai_request_finished",
         result: "success",
         message: "AI idea request finished",
         level: "success",
-        metadata: { provider: "openai-compatible" },
+        metadata: {
+          task_type: taskType,
+          provider: aiResult.provider,
+          key_alias: aiResult.keyAlias,
+          model_used: aiResult.modelUsed,
+        },
+        usage: {
+          taskType,
+          provider: aiResult.provider,
+          modelUsed: aiResult.modelUsed,
+          keyAlias: aiResult.keyAlias,
+          inputTokens: aiResult.inputTokens,
+          outputTokens: aiResult.outputTokens,
+          totalTokens: aiResult.totalTokens,
+          status: "success",
+        },
       });
       return { input: ideaFromPayload(analysis, payload), auditActions };
     } catch (error) {
@@ -203,7 +232,21 @@ async function buildIdeaInput(analysis: AnalysisRow): Promise<{
         result: "error",
         message: "AI idea generation failed; deterministic fallback used",
         level: "error",
-        metadata: { error: error instanceof Error ? error.message : String(error) },
+        metadata: {
+          task_type: taskType,
+          provider: aiConfig.provider,
+          key_alias: aiConfig.keyAlias,
+          model_used: aiConfig.model,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        usage: {
+          taskType,
+          provider: aiConfig.provider,
+          modelUsed: aiConfig.model,
+          keyAlias: aiConfig.keyAlias,
+          status: "error",
+          errorMessage: error instanceof Error ? error.message : String(error),
+        },
       });
     }
   }
@@ -213,7 +256,20 @@ async function buildIdeaInput(analysis: AnalysisRow): Promise<{
     result: "success",
     message: "Deterministic ViralMaxing idea fallback used",
     level: "info",
-    metadata: { reason: isAiConfigured() ? "ai_error" : "ai_not_configured" },
+    metadata: {
+      task_type: taskType,
+      provider: aiConfig.provider,
+      key_alias: aiConfig.keyAlias,
+      model_used: aiConfig.model,
+      reason: isAiConfigured(taskType) ? "ai_error" : "ai_not_configured",
+    },
+    usage: {
+      taskType,
+      provider: aiConfig.provider,
+      modelUsed: aiConfig.model,
+      keyAlias: aiConfig.keyAlias,
+      status: "fallback",
+    },
   });
 
   return {
@@ -356,6 +412,10 @@ export async function ideaRoutes(app: FastifyInstance): Promise<void> {
           },
           client,
         );
+
+        if (auditAction.action !== "ai_request_started") {
+          await writeAiUsageLog(auditAction.usage, client);
+        }
       }
 
       return createdIdea;

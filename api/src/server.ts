@@ -3,6 +3,7 @@ import Fastify from "fastify";
 import { config } from "./config.js";
 import { closeDb, DatabaseSchemaError, DatabaseUnavailableError } from "./db.js";
 import { registerTelegramAuth } from "./middleware/telegramAuth.js";
+import { aiRoutes } from "./routes/ai.js";
 import { analysisRoutes } from "./routes/analyses.js";
 import { healthRoutes } from "./routes/health.js";
 import { ideaRoutes } from "./routes/ideas.js";
@@ -38,6 +39,7 @@ export async function buildServer() {
 
   await registerTelegramAuth(app);
   await healthRoutes(app);
+  await aiRoutes(app);
   await sourceRoutes(app);
   await analysisRoutes(app);
   await ideaRoutes(app);

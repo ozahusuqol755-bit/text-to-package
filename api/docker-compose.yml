@@ -9,6 +9,20 @@ services:
       HOST: 0.0.0.0
       PORT: 4000
       DATABASE_URL: postgres://postgres:postgres@postgres:5432/content_factory
+      AI_PROVIDER: ${AI_PROVIDER:-}
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-}
+      AI_FAST_API_KEY: ${AI_FAST_API_KEY:-}
+      AI_FAST_MODEL: ${AI_FAST_MODEL:-}
+      AI_SMART_API_KEY: ${AI_SMART_API_KEY:-}
+      AI_SMART_MODEL: ${AI_SMART_MODEL:-}
+      AI_WRITE_API_KEY: ${AI_WRITE_API_KEY:-}
+      AI_WRITE_MODEL: ${AI_WRITE_MODEL:-}
+      AI_IMAGE_API_KEY: ${AI_IMAGE_API_KEY:-}
+      AI_IMAGE_MODEL: ${AI_IMAGE_MODEL:-}
+      AI_VIDEO_API_KEY: ${AI_VIDEO_API_KEY:-}
+      AI_VIDEO_MODEL: ${AI_VIDEO_MODEL:-}
     expose:
       - "4000"
     depends_on:

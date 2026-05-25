@@ -13,6 +13,16 @@ const EnvSchema = z.object({
   AI_BASE_URL: z.string().optional().default(""),
   AI_API_KEY: z.string().optional().default(""),
   AI_MODEL: z.string().optional().default(""),
+  AI_FAST_API_KEY: z.string().optional().default(""),
+  AI_FAST_MODEL: z.string().optional().default(""),
+  AI_SMART_API_KEY: z.string().optional().default(""),
+  AI_SMART_MODEL: z.string().optional().default(""),
+  AI_WRITE_API_KEY: z.string().optional().default(""),
+  AI_WRITE_MODEL: z.string().optional().default(""),
+  AI_IMAGE_API_KEY: z.string().optional().default(""),
+  AI_IMAGE_MODEL: z.string().optional().default(""),
+  AI_VIDEO_API_KEY: z.string().optional().default(""),
+  AI_VIDEO_MODEL: z.string().optional().default(""),
 });
 
 export const config = EnvSchema.parse(process.env);

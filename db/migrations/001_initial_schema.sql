@@ -340,3 +340,36 @@ create index idx_pipeline_logs_job_id on pipeline_logs(job_id);
 create index idx_pipeline_logs_ts on pipeline_logs(ts desc);
 
 create index idx_tools_enabled on tools(enabled);
+
+create table ai_usage_logs (
+  id uuid primary key default gen_random_uuid(),
+  task_type text not null check (
+    task_type in (
+      'bulk_analysis',
+      'analysis',
+      'idea',
+      'content_pack',
+      'image_prompt',
+      'image_generation',
+      'video_prompt',
+      'video_generation'
+    )
+  ),
+  provider text not null,
+  model_used text,
+  key_alias text not null check (
+    key_alias in ('default', 'fast', 'smart', 'write', 'image', 'video')
+  ),
+  input_tokens integer,
+  output_tokens integer,
+  total_tokens integer,
+  estimated_cost numeric,
+  status text not null check (status in ('success', 'error', 'fallback')),
+  error_message text,
+  created_at timestamptz not null default now()
+);
+
+create index idx_ai_usage_logs_task_type on ai_usage_logs(task_type);
+create index idx_ai_usage_logs_key_alias on ai_usage_logs(key_alias);
+create index idx_ai_usage_logs_status on ai_usage_logs(status);
+create index idx_ai_usage_logs_created_at on ai_usage_logs(created_at desc);

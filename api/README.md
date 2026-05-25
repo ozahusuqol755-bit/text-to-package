@@ -31,27 +31,78 @@ been applied, they return `database_schema_missing`.
 
 ## AI Provider
 
-The API uses an OpenAI-compatible chat completions adapter when all AI env
-values are set:
+The API can run with no AI keys. When AI env is empty, Analysis, Ideas, and
+Content Pack generation use deterministic fallback and write `ai_fallback_used`
+to `/api/logs` plus a `fallback` row in `/api/ai/usage`.
+
+To enable a real OpenAI-compatible provider, set the default env:
 
 ```bash
 AI_PROVIDER=openai-compatible
-AI_BASE_URL=https://api.openai.com/v1
+AI_BASE_URL=https://provider.example/v1
 AI_API_KEY=<secret>
-AI_MODEL=gpt-4.1-mini
+AI_MODEL=<model-name>
+
+AI_FAST_API_KEY=
+AI_FAST_MODEL=
+
+AI_SMART_API_KEY=
+AI_SMART_MODEL=
+
+AI_WRITE_API_KEY=
+AI_WRITE_MODEL=
+
+AI_IMAGE_API_KEY=
+AI_IMAGE_MODEL=
+
+AI_VIDEO_API_KEY=
+AI_VIDEO_MODEL=
 ```
 
-`AI_API_KEY` is sent only as an Authorization header and is never written to
-`pipeline_logs`. AI responses must contain JSON. The adapter extracts JSON from
-plain text or markdown fences and repairs common trailing commas. If the request
-times out, the provider returns an error, or JSON validation fails, the API logs
-`ai_error` and then uses deterministic fallback. Real AI usage is visible in
-`/api/logs` as `ai_request_started` and `ai_request_finished`; fallback usage is
-visible as `ai_fallback_used`.
+Role-specific keys/models are optional. If a role-specific key/model exists, it
+is used for that role; otherwise the API falls back to `AI_API_KEY` /
+`AI_MODEL`. If default credentials are also missing, deterministic fallback is
+used. API keys are sent only as Authorization headers and are never written to
+`pipeline_logs`, `ai_usage_logs`, or API responses.
+
+Task routing:
+
+- `bulk_analysis` → `fast`
+- `analysis` → `smart`
+- `idea` → `smart`, then `write`
+- `content_pack` → `write`
+- `image_prompt` / `video_prompt` → `write`
+- `image_generation` → `image` only; disabled without image env
+- `video_generation` → `video` only; disabled without video env
+
+AI responses must contain JSON. The adapter extracts JSON from plain text or
+markdown fences and repairs common trailing commas. If the request times out,
+the provider returns an error, or JSON validation fails, the API logs `ai_error`
+and then uses deterministic fallback. Real AI usage is visible in `/api/logs` as
+`ai_request_started` and `ai_request_finished`; fallback usage is visible as
+`ai_fallback_used`.
+
+Check AI readiness without exposing secrets:
+
+```bash
+curl -sS http://127.0.0.1:4000/api/ai/status
+curl -sS http://127.0.0.1:4000/api/ai/usage
+curl -sS http://127.0.0.1:4000/api/logs
+```
+
+On the server, put real values in `/root/codex-work/text-to-package/api/.env`
+and restart only the API service:
+
+```bash
+cd /root/codex-work/text-to-package/api
+docker compose up -d --build api
+```
 
 ## Current Endpoints
 
 - `GET /health`
+- `GET /api/ai/status`
+- `GET /api/ai/usage`
 - `GET /api/sources`
 - `POST /api/sources`
 - `POST /api/sources/import/google-sheet`
@@ -126,12 +177,14 @@ curl -sS http://127.0.0.1:4000/api/analyses
 curl -sS http://127.0.0.1:4000/api/logs
 ```
 
-Analysis uses `AI_PROVIDER`, `AI_BASE_URL`, `AI_API_KEY`, and `AI_MODEL` when
-all four values are set. Without AI env, the API uses a deterministic
-ViralMaxing fallback that still considers `views`, `likes`, `comments`,
-`shares`, `saves`, `engagement_rate`, `platform`, `author`, `caption`,
-`published_at`, and `niche`. The fallback writes `ai_fallback_used` to
-`pipeline_logs`; AI failures write `ai_error` and then fallback.
+Analysis uses role routing: bulk analysis tries `fast`, single analysis tries
+`smart`, and both fall back to default `AI_API_KEY` / `AI_MODEL` if role env is
+empty. Without AI env, the API uses a deterministic ViralMaxing fallback that
+still considers `views`, `likes`, `comments`, `shares`, `saves`,
+`engagement_rate`, `platform`, `author`, `caption`, `published_at`, and
+`niche`. The fallback writes `ai_fallback_used` to `pipeline_logs` and a
+`fallback` row to `ai_usage_logs`; AI failures write `ai_error` and then
+fallback.
 
 ## Analysis To Idea Flow
 
