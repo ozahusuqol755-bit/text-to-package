@@ -18,6 +18,8 @@ const map: Record<string, { cls: string; label: string }> = {
   accepted: { cls: "badge-success", label: "Принята" },
   in_pack: { cls: "badge-info", label: "В пакете" },
   // packs
+  drafted: { cls: "badge-draft", label: "Собран" },
+  needs_review: { cls: "badge-warn", label: "Нужна проверка" },
   ready_for_review: { cls: "badge-warn", label: "На проверке" },
   rewrite_requested: { cls: "badge-warn", label: "На доработку" },
   approved: { cls: "badge-success", label: "Согласован" },

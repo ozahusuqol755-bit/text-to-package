@@ -1,11 +1,17 @@
 import { config } from "../config.js";
 
+const DEFAULT_AI_TIMEOUT_MS = 20_000;
+
 interface ChatCompletionResponse {
   choices?: Array<{
     message?: {
       content?: string;
     };
   }>;
+}
+
+export interface StructuredJsonRequestOptions {
+  timeoutMs?: number;
 }
 
 export function isAiConfigured(): boolean {
@@ -17,23 +23,38 @@ export function isAiConfigured(): boolean {
   );
 }
 
-function extractJson(content: string): unknown {
-  const trimmed = content.trim();
-
-  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
-    return JSON.parse(trimmed);
-  }
-
-  const match = trimmed.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error("AI response did not contain JSON.");
-
-  return JSON.parse(match[0]);
+function stripMarkdownFence(content: string): string {
+  return content
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
 }
 
-export async function requestStructuredJson(prompt: string): Promise<unknown> {
+function repairCommonJsonIssues(content: string): string {
+  return content.replace(/,\s*([}\]])/g, "$1");
+}
+
+export function parseStructuredJson(content: string): unknown {
+  const stripped = stripMarkdownFence(content);
+  const match = stripped.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error("AI response did not contain JSON.");
+
+  const json = repairCommonJsonIssues(match[0]);
+  return JSON.parse(json);
+}
+
+export async function requestStructuredJson(
+  prompt: string,
+  options: StructuredJsonRequestOptions = {},
+): Promise<unknown> {
   const baseUrl = config.AI_BASE_URL.replace(/\/$/, "");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? DEFAULT_AI_TIMEOUT_MS);
+
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
+    signal: controller.signal,
     headers: {
       authorization: `Bearer ${config.AI_API_KEY}`,
       "content-type": "application/json",
@@ -50,7 +71,7 @@ export async function requestStructuredJson(prompt: string): Promise<unknown> {
       ],
       temperature: 0.3,
     }),
-  });
+  }).finally(() => clearTimeout(timeout));
 
   if (!response.ok) {
     throw new Error(`AI request failed: ${response.status}`);
@@ -63,5 +84,5 @@ export async function requestStructuredJson(prompt: string): Promise<unknown> {
     throw new Error("AI response was empty.");
   }
 
-  return extractJson(content);
+  return parseStructuredJson(content);
 }

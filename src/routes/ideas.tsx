@@ -15,6 +15,21 @@ function IdeasPage() {
   const [drawerId, setDrawerId] = useState<string | null>(null);
   const drawer = s.ideas.find((i) => i.id === drawerId) ?? null;
 
+  async function generateContentPack(ideaId: string) {
+    if (s.apiMode === "ready") {
+      await s.createContentPackViaBackend(ideaId);
+      toast.success("Контент-пакет создан");
+      navigate({ to: "/packs" });
+      return;
+    }
+
+    const packId = s.buildPackFromIdea(ideaId);
+    if (packId) {
+      toast.success("Контент-пакет собран");
+      navigate({ to: "/packs" });
+    }
+  }
+
   return (
     <>
       <StageHeader
@@ -115,19 +130,14 @@ function IdeasPage() {
                     <X className="size-4" /> Отклонить
                   </button>
                 </div>
-                {(i.status === "accepted" || i.status === "in_pack") && (
+                {(i.status === "accepted" || i.status === "in_pack" || s.apiMode === "ready") && (
                   <button
-                    onClick={() => {
-                      const packId = s.buildPackFromIdea(i.id);
-                      if (packId) {
-                        toast.success(hasPack ? "Пакет открыт" : "Контент-пакет собран");
-                        navigate({ to: "/packs" });
-                      }
-                    }}
-                    className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 font-semibold text-primary-foreground"
+                    onClick={() => void generateContentPack(i.id)}
+                    disabled={s.apiAction === "create_content_pack_from_idea"}
+                    className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 font-semibold text-primary-foreground disabled:opacity-60"
                   >
                     <Package className="size-4" />
-                    {hasPack ? "Открыть пакет" : "Собрать контент-пакет"}
+                    {hasPack ? "Открыть пакет" : "Generate content pack"}
                     <ArrowRight className="size-4" />
                   </button>
                 )}
@@ -186,16 +196,14 @@ function IdeasPage() {
                   disabled: drawer.status === "accepted" || drawer.status === "in_pack",
                 },
                 {
-                  label: "Собрать пакет",
-                  onClick: () => {
-                    const id = s.buildPackFromIdea(drawer.id);
-                    if (id) {
-                      toast.success("Пакет готов");
-                      navigate({ to: "/packs" });
-                    }
-                  },
+                  label: "Generate content pack",
+                  onClick: () => void generateContentPack(drawer.id),
                   variant: "muted",
-                  disabled: drawer.status !== "accepted" && drawer.status !== "in_pack",
+                  disabled:
+                    s.apiAction === "create_content_pack_from_idea" ||
+                    (s.apiMode !== "ready" &&
+                      drawer.status !== "accepted" &&
+                      drawer.status !== "in_pack"),
                 },
                 {
                   label: "Отклонить",

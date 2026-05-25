@@ -29,6 +29,26 @@ If Postgres is not running, DB-backed endpoints return
 `503 database_unavailable`. If the database exists but the migration has not
 been applied, they return `database_schema_missing`.
 
+## AI Provider
+
+The API uses an OpenAI-compatible chat completions adapter when all AI env
+values are set:
+
+```bash
+AI_PROVIDER=openai-compatible
+AI_BASE_URL=https://api.openai.com/v1
+AI_API_KEY=<secret>
+AI_MODEL=gpt-4.1-mini
+```
+
+`AI_API_KEY` is sent only as an Authorization header and is never written to
+`pipeline_logs`. AI responses must contain JSON. The adapter extracts JSON from
+plain text or markdown fences and repairs common trailing commas. If the request
+times out, the provider returns an error, or JSON validation fails, the API logs
+`ai_error` and then uses deterministic fallback. Real AI usage is visible in
+`/api/logs` as `ai_request_started` and `ai_request_finished`; fallback usage is
+visible as `ai_fallback_used`.
+
 ## Current Endpoints
 
 - `GET /health`
@@ -44,6 +64,7 @@ been applied, they return `database_schema_missing`.
 - `POST /api/analysis/:id/to-idea`
 - `GET /api/content-packs`
 - `POST /api/ideas/:id/build-pack`
+- `POST /api/ideas/:id/to-content-pack`
 - `GET /api/content-assets`
 - `GET /api/review-checks`
 - `POST /api/content-packs/:id/send-to-review`
@@ -130,6 +151,7 @@ curl -sS http://127.0.0.1:4000/api/logs
 IDEA_ID="<created-idea-id>"
 
 curl -sS -X POST "http://127.0.0.1:4000/api/ideas/${IDEA_ID}/build-pack"
+curl -sS -X POST "http://127.0.0.1:4000/api/ideas/${IDEA_ID}/to-content-pack"
 
 curl -sS http://127.0.0.1:4000/api/content-packs
 curl -sS http://127.0.0.1:4000/api/content-assets

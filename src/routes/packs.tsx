@@ -140,6 +140,22 @@ function PacksPage() {
                 </div>
               </div>
 
+              {pack.draft_text && (
+                <div className="tg-card space-y-3">
+                  <SectionTitle>Draft content</SectionTitle>
+                  <div className="rounded-lg border border-border bg-black/20 p-3 text-xs leading-relaxed whitespace-pre-wrap">
+                    {pack.draft_text}
+                  </div>
+                  <PackField label="hooks" values={pack.hooks} />
+                  <PackField label="captions" values={pack.captions} />
+                  <PackField label="visual_brief" value={pack.visual_brief} />
+                  <PackField label="image_prompt" value={pack.image_prompt} />
+                  <PackField label="video_script" value={pack.video_script} pre />
+                  <PackField label="cta" value={pack.cta} />
+                  <PackField label="checklist" values={pack.checklist} />
+                </div>
+              )}
+
               <SectionTitle>Ассеты пакета</SectionTitle>
               <div className="space-y-2">
                 {assets.map((a) => {
@@ -247,6 +263,13 @@ function PacksPage() {
           packDrawer
             ? [
                 { label: "idea_id", value: packDrawer.idea_id },
+                { label: "source_id", value: packDrawer.source_id ?? "—" },
+                { label: "analysis_id", value: packDrawer.analysis_id ?? "—" },
+                { label: "platform", value: packDrawer.platform ?? "—" },
+                { label: "format", value: packDrawer.format ?? "—" },
+                { label: "hooks", value: packDrawer.hooks?.join(" · ") ?? "—" },
+                { label: "captions", value: packDrawer.captions?.join(" · ") ?? "—" },
+                { label: "checklist", value: packDrawer.checklist?.join(" · ") ?? "—" },
                 { label: "approved_by", value: packDrawer.approved_by ?? "—" },
                 {
                   label: "approved_at",
@@ -339,5 +362,27 @@ function PacksPage() {
         }
       />
     </>
+  );
+}
+
+function PackField({
+  label,
+  value,
+  values,
+  pre = false,
+}: {
+  label: string;
+  value?: string;
+  values?: string[];
+  pre?: boolean;
+}) {
+  const text = values?.length ? values.join(" · ") : value;
+  if (!text) return null;
+
+  return (
+    <div className="text-xs">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className={`text-foreground/90 ${pre ? "whitespace-pre-wrap" : ""}`}>{text}</div>
+    </div>
   );
 }

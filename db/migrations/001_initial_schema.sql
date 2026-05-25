@@ -100,20 +100,36 @@ create table ideas (
 
 create table content_packs (
   id uuid primary key default gen_random_uuid(),
+  source_id uuid references sources(id) on delete set null,
+  analysis_id uuid references analyses(id) on delete set null,
   idea_id uuid not null references ideas(id) on delete restrict,
   title text not null,
+  platform text,
+  format text,
+  draft_text text,
+  hooks jsonb not null default '[]'::jsonb,
+  captions jsonb not null default '[]'::jsonb,
+  visual_brief text,
+  image_prompt text,
+  video_script text,
+  cta text,
+  checklist jsonb not null default '[]'::jsonb,
   status text not null default 'draft' check (
     status in (
       'draft',
+      'drafted',
       'rewrite_requested',
       'ready_for_review',
+      'needs_review',
       'approved',
       'rejected',
       'scheduled',
       'publishing',
-      'published'
+      'published',
+      'failed'
     )
   ),
+  content_pack_payload jsonb not null default '{}'::jsonb,
   approved_by text,
   approved_at timestamptz,
   created_at timestamptz not null default now(),
@@ -302,6 +318,8 @@ create index idx_analyses_metric_id on analyses(metric_id);
 create index idx_ideas_status on ideas(status);
 
 create index idx_content_packs_status on content_packs(status);
+create index idx_content_packs_source_id on content_packs(source_id);
+create index idx_content_packs_analysis_id on content_packs(analysis_id);
 create index idx_content_packs_idea_id on content_packs(idea_id);
 
 create index idx_content_assets_status on content_assets(status);

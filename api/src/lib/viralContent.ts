@@ -74,6 +74,56 @@ export interface DeterministicIdeaInput {
   payload: IdeaPayload;
 }
 
+export interface ContentPackPayload {
+  title: string;
+  platform: "telegram";
+  format: "telegram_post";
+  draft_text: string;
+  hooks: string[];
+  captions: string[];
+  visual_brief: string;
+  image_prompt: string;
+  video_script: string;
+  cta: string;
+  checklist: string[];
+}
+
+export interface ContentPackForIdeaInput {
+  idea: {
+    id: string;
+    topic: string;
+    angle: string;
+    source_refs: unknown;
+    platform_targets?: unknown;
+    priority_score: number;
+    idea_payload?: Partial<IdeaPayload> | null;
+  };
+  analysis?: {
+    id: string;
+    source_id: string | null;
+    analysis_payload?: Partial<ViralAnalysisPayload> | null;
+  } | null;
+  source?: {
+    id: string;
+    title: string;
+    url?: string | null;
+    raw_payload?: Record<string, unknown> | null;
+  } | null;
+}
+
+export interface DeterministicContentPackInput extends ContentPackPayload {
+  source_id: string | null;
+  analysis_id: string | null;
+  idea_id: string;
+  status: "drafted";
+  payload: ContentPackPayload & {
+    source_id: string | null;
+    analysis_id: string | null;
+    idea_id: string;
+    metrics_signal?: ViralAnalysisPayload["metrics_signal"];
+  };
+}
+
 function textValue(payload: Record<string, unknown>, keys: string[]): string {
   for (const key of keys) {
     const value = payload[key];
@@ -311,5 +361,89 @@ export function buildDeterministicIdea(analysis: AnalysisForIdeaInput): Determin
     tags: ["generated", "analysis", "viralmaxing"],
     status: "draft",
     payload: ideaPayload,
+  };
+}
+
+export function buildDeterministicContentPack(
+  input: ContentPackForIdeaInput,
+): DeterministicContentPackInput {
+  const ideaPayload = input.idea.idea_payload ?? {};
+  const analysisPayload = input.analysis?.analysis_payload ?? {};
+  const sourcePayload =
+    input.source?.raw_payload && typeof input.source.raw_payload === "object"
+      ? input.source.raw_payload
+      : {};
+  const hook = ideaPayload.hook || analysisPayload.hook || input.idea.topic;
+  const title = ideaPayload.title || input.idea.topic;
+  const thesis = ideaPayload.thesis || input.idea.angle;
+  const signalReason =
+    analysisPayload.metrics_signal?.reason ||
+    `views=${numberValue(sourcePayload, "views")}, shares=${numberValue(
+      sourcePayload,
+      "shares",
+    )}, engagement_rate=${numberValue(sourcePayload, "engagement_rate")}`;
+  const outline =
+    Array.isArray(ideaPayload.outline) && ideaPayload.outline.length > 0
+      ? ideaPayload.outline
+      : ["Hook", "Why the ref worked", "Our adaptation", "Operator CTA"];
+  const risks =
+    Array.isArray(analysisPayload.risks) && analysisPayload.risks.length > 0
+      ? analysisPayload.risks
+      : [ideaPayload.risk_to_check || "Check source context before publishing."];
+  const cta = "Выберите один реф, адаптируйте паттерн и проверьте факты перед публикацией.";
+  const contentPack: ContentPackPayload = {
+    title,
+    platform: "telegram",
+    format: "telegram_post",
+    draft_text: [
+      hook,
+      "",
+      thesis,
+      "",
+      `Почему это важно: ${analysisPayload.why_it_worked || signalReason}`,
+      "",
+      ...outline.map((item, index) => `${index + 1}. ${item}`),
+      "",
+      `CTA: ${cta}`,
+    ].join("\n"),
+    hooks: [
+      hook,
+      `Почему этот реф залетел: ${signalReason}`,
+      `Как адаптировать ${input.source?.title || "этот ref"} без копирования`,
+    ],
+    captions: [
+      `${title}. ${ideaPayload.adaptation_note || signalReason}`,
+      `Берём не чужой текст, а паттерн: ${hook}`,
+    ],
+    visual_brief: `Clean operator dashboard visual. Show source metrics, analysis insight, and a Telegram-ready draft for ${title}.`,
+    image_prompt: `Editorial image for a Telegram post about "${title}", with a clear content factory workflow and metrics signal.`,
+    video_script: `0-3s: ${hook}\n3-10s: explain why the ref worked.\n10-20s: show the adapted operator checklist.\n20-25s: ${cta}`,
+    cta,
+    checklist: [
+      "Verify source context and avoid copying the original.",
+      "Check metrics signal against the imported ViralMaxing row.",
+      "Confirm hook, thesis, CTA, and risks before review.",
+      ...risks.map((risk) => `Risk: ${risk}`),
+    ],
+  };
+
+  const enrichedPayload: DeterministicContentPackInput["payload"] = {
+    ...contentPack,
+    source_id: input.analysis?.source_id ?? input.source?.id ?? null,
+    analysis_id: input.analysis?.id ?? null,
+    idea_id: input.idea.id,
+  };
+
+  if (analysisPayload.metrics_signal) {
+    enrichedPayload.metrics_signal = analysisPayload.metrics_signal;
+  }
+
+  return {
+    source_id: input.analysis?.source_id ?? input.source?.id ?? null,
+    analysis_id: input.analysis?.id ?? null,
+    idea_id: input.idea.id,
+    status: "drafted",
+    ...contentPack,
+    payload: enrichedPayload,
   };
 }

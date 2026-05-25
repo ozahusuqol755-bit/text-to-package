@@ -208,6 +208,7 @@ interface ContextValue extends State {
   analyzeSourceViaBackend: (sourceId: string) => Promise<void>;
   analyzeSourcesBulkViaBackend: (sourceIds: string[]) => Promise<void>;
   createIdeaViaBackend: (analysisId: string) => Promise<void>;
+  createContentPackViaBackend: (ideaId: string) => Promise<void>;
   // sources
   addSource: (input: {
     title: string;
@@ -404,7 +405,7 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
       runBackendAction("build_pack", async () => {
         const idea = state.ideas[0];
         if (!idea) throw new Error("Нет идеи для сборки пакета.");
-        const result = await backendApi.buildPack(idea.id);
+        const result = await backendApi.ideaToContentPack(idea.id);
         return `Контент-пакет собран: ${result.assets.length} ассета`;
       });
 
@@ -464,6 +465,12 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
       runBackendAction("create_idea_from_analysis", async () => {
         const idea = await backendApi.analysisToIdea(analysisId);
         return `Идея создана: ${idea.topic}`;
+      });
+
+    const createContentPackViaBackend = (ideaId: string) =>
+      runBackendAction("create_content_pack_from_idea", async () => {
+        const result = await backendApi.ideaToContentPack(ideaId);
+        return `Контент-пакет создан: ${result.pack.title}`;
       });
 
     // ── SOURCES ─────────────────────────────────────────────────────
@@ -989,6 +996,7 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
       analyzeSourceViaBackend,
       analyzeSourcesBulkViaBackend,
       createIdeaViaBackend,
+      createContentPackViaBackend,
       addSource,
       parseSource,
       rejectSource,

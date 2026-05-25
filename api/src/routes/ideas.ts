@@ -162,25 +162,40 @@ Return exactly this JSON shape:
 async function buildIdeaInput(analysis: AnalysisRow): Promise<{
   input: DeterministicIdeaInput;
   auditActions: Array<{
-    action: "ai_fallback_used" | "ai_error";
+    action: "ai_request_started" | "ai_request_finished" | "ai_fallback_used" | "ai_error";
     result: "success" | "error";
     message: string;
-    level: "info" | "error";
+    level: "info" | "success" | "error";
     metadata?: Record<string, unknown>;
   }>;
 }> {
   const auditActions: Array<{
-    action: "ai_fallback_used" | "ai_error";
+    action: "ai_request_started" | "ai_request_finished" | "ai_fallback_used" | "ai_error";
     result: "success" | "error";
     message: string;
-    level: "info" | "error";
+    level: "info" | "success" | "error";
     metadata?: Record<string, unknown>;
   }> = [];
 
   if (isAiConfigured()) {
+    auditActions.push({
+      action: "ai_request_started",
+      result: "success",
+      message: "AI idea request started",
+      level: "info",
+      metadata: { provider: "openai-compatible" },
+    });
+
     try {
       const aiResult = await requestStructuredJson(buildIdeaPrompt(analysis));
       const payload = AiIdeaPayloadSchema.parse(aiResult);
+      auditActions.push({
+        action: "ai_request_finished",
+        result: "success",
+        message: "AI idea request finished",
+        level: "success",
+        metadata: { provider: "openai-compatible" },
+      });
       return { input: ideaFromPayload(analysis, payload), auditActions };
     } catch (error) {
       auditActions.push({

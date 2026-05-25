@@ -2,8 +2,15 @@ import type { FastifyInstance } from "fastify";
 import type { PoolClient } from "pg";
 import { z } from "zod";
 import { query, transaction } from "../db.js";
+import { isAiConfigured, requestStructuredJson } from "../lib/ai.js";
 import { writeAuditLog } from "../lib/auditLog.js";
 import { canApprovePack } from "../lib/guards.js";
+import {
+  buildDeterministicContentPack,
+  type ContentPackForIdeaInput,
+  type ContentPackPayload,
+  type DeterministicContentPackInput,
+} from "../lib/viralContent.js";
 
 interface IdeaRow {
   id: string;
@@ -15,13 +22,40 @@ interface IdeaRow {
   priority_score: number;
   tags: unknown;
   status: string;
+  idea_payload: unknown;
+}
+
+interface SourceRow {
+  id: string;
+  title: string;
+  url: string | null;
+  raw_payload: Record<string, unknown> | null;
+}
+
+interface AnalysisRow {
+  id: string;
+  source_id: string | null;
+  analysis_payload: unknown;
 }
 
 interface ContentPackRow {
   id: string;
+  source_id: string | null;
+  analysis_id: string | null;
   idea_id: string;
   title: string;
+  platform: string | null;
+  format: string | null;
+  draft_text: string | null;
+  hooks: unknown;
+  captions: unknown;
+  visual_brief: string | null;
+  image_prompt: string | null;
+  video_script: string | null;
+  cta: string | null;
+  checklist: unknown;
   status: string;
+  content_pack_payload: unknown;
   approved_by: string | null;
   approved_at: Date | null;
   created_at: Date;
@@ -79,12 +113,39 @@ const RejectPackSchema = z.object({
   reason: z.string().trim().min(1).optional(),
 });
 
+const AiContentPackPayloadSchema = z.object({
+  title: z.string().min(1),
+  platform: z.literal("telegram"),
+  format: z.literal("telegram_post"),
+  draft_text: z.string().min(1),
+  hooks: z.array(z.string().min(1)).min(1),
+  captions: z.array(z.string().min(1)).default([]),
+  visual_brief: z.string().min(1),
+  image_prompt: z.string().min(1),
+  video_script: z.string().min(1),
+  cta: z.string().min(1),
+  checklist: z.array(z.string().min(1)).min(1),
+});
+
 function packColumns(): string {
   return `
     id,
+    source_id,
+    analysis_id,
     idea_id,
     title,
+    platform,
+    format,
+    draft_text,
+    hooks,
+    captions,
+    visual_brief,
+    image_prompt,
+    video_script,
+    cta,
+    checklist,
     status,
+    content_pack_payload,
     approved_by,
     approved_at,
     created_at,
@@ -133,6 +194,129 @@ function normalizeSourceRefs(value: unknown): string[] {
 
 function buildPackTitle(idea: IdeaRow): string {
   return idea.topic.length > 96 ? `${idea.topic.slice(0, 93)}...` : idea.topic;
+}
+
+function readFirstSourceRef(value: unknown): string | null {
+  return normalizeSourceRefs(value)[0] ?? null;
+}
+
+function contentPackFromPayload(
+  idea: ContentPackForIdeaInput["idea"],
+  analysis: ContentPackForIdeaInput["analysis"],
+  source: ContentPackForIdeaInput["source"],
+  payload: ContentPackPayload,
+): DeterministicContentPackInput {
+  return {
+    source_id: analysis?.source_id ?? source?.id ?? null,
+    analysis_id: analysis?.id ?? null,
+    idea_id: idea.id,
+    status: "drafted",
+    ...payload,
+    payload: {
+      ...payload,
+      source_id: analysis?.source_id ?? source?.id ?? null,
+      analysis_id: analysis?.id ?? null,
+      idea_id: idea.id,
+    },
+  };
+}
+
+function buildContentPackPrompt(input: ContentPackForIdeaInput): string {
+  return `
+Generate a Telegram content pack from this Idea, Analysis, and source metrics.
+
+Rules:
+- Do not invent outside context.
+- Adapt the source pattern; do not copy the original.
+- Use source metrics as evidence for the angle and checklist.
+- Return only valid JSON.
+
+Input:
+${JSON.stringify(input, null, 2)}
+
+Return exactly this JSON shape:
+{
+  "title": "...",
+  "platform": "telegram",
+  "format": "telegram_post",
+  "draft_text": "...",
+  "hooks": ["...", "...", "..."],
+  "captions": ["...", "..."],
+  "visual_brief": "...",
+  "image_prompt": "...",
+  "video_script": "...",
+  "cta": "...",
+  "checklist": ["...", "...", "..."]
+}
+`;
+}
+
+async function buildContentPackInput(input: ContentPackForIdeaInput): Promise<{
+  packInput: DeterministicContentPackInput;
+  auditActions: Array<{
+    action: "ai_request_started" | "ai_request_finished" | "ai_fallback_used" | "ai_error";
+    result: "success" | "error";
+    message: string;
+    level: "info" | "success" | "error";
+    metadata?: Record<string, unknown>;
+  }>;
+}> {
+  const auditActions: Array<{
+    action: "ai_request_started" | "ai_request_finished" | "ai_fallback_used" | "ai_error";
+    result: "success" | "error";
+    message: string;
+    level: "info" | "success" | "error";
+    metadata?: Record<string, unknown>;
+  }> = [];
+
+  if (isAiConfigured()) {
+    auditActions.push({
+      action: "ai_request_started",
+      result: "success",
+      message: "AI content pack request started",
+      level: "info",
+      metadata: { provider: "openai-compatible" },
+    });
+
+    try {
+      const aiResult = await requestStructuredJson(buildContentPackPrompt(input));
+      const payload = AiContentPackPayloadSchema.parse(aiResult);
+      auditActions.push({
+        action: "ai_request_finished",
+        result: "success",
+        message: "AI content pack request finished",
+        level: "success",
+        metadata: { provider: "openai-compatible" },
+      });
+      return {
+        packInput: contentPackFromPayload(
+          input.idea,
+          input.analysis ?? null,
+          input.source ?? null,
+          payload,
+        ),
+        auditActions,
+      };
+    } catch (error) {
+      auditActions.push({
+        action: "ai_error",
+        result: "error",
+        message: "AI content pack generation failed; deterministic fallback used",
+        level: "error",
+        metadata: { error: error instanceof Error ? error.message : String(error) },
+      });
+    }
+  }
+
+  auditActions.push({
+    action: "ai_fallback_used",
+    result: "success",
+    message: "Deterministic content pack fallback used",
+    level: "info",
+    metadata: { reason: isAiConfigured() ? "ai_error" : "ai_not_configured" },
+  });
+
+  return { packInput: buildDeterministicContentPack(input), auditActions };
 }
 
 function buildAssets(idea: IdeaRow): AssetInput[] {
@@ -502,6 +686,252 @@ export async function packRoutes(app: FastifyInstance): Promise<void> {
       );
 
       return { pack, assets, review_checks: checks };
+    });
+
+    if (!result) {
+      return reply.status(404).send({
+        error: "not_found",
+        message: "Idea not found.",
+      });
+    }
+
+    return reply.status(201).send({ data: result });
+  });
+
+  app.post("/api/ideas/:id/to-content-pack", async (request, reply) => {
+    const parsedParams = IdeaIdParamsSchema.safeParse(request.params);
+
+    if (!parsedParams.success) {
+      return reply.status(400).send({
+        error: "validation_error",
+        issues: parsedParams.error.issues,
+      });
+    }
+
+    const actor = request.actor?.username ?? request.actor?.id;
+    const result = await transaction(async (client) => {
+      const ideaResult = await client.query<IdeaRow>(
+        `
+          select
+            id,
+            topic,
+            angle,
+            source_refs,
+            platform_targets,
+            priority,
+            priority_score,
+            tags,
+            status,
+            idea_payload
+          from ideas
+          where id = $1
+          for update
+        `,
+        [parsedParams.data.id],
+      );
+      const idea = ideaResult.rows[0];
+
+      if (!idea) {
+        return null;
+      }
+
+      const sourceId = readFirstSourceRef(idea.source_refs);
+      const sourceResult = sourceId
+        ? await client.query<SourceRow>(
+            `
+              select
+                id,
+                title,
+                url,
+                raw_payload
+              from sources
+              where id = $1
+            `,
+            [sourceId],
+          )
+        : null;
+      const source = sourceResult?.rows[0] ?? null;
+      const analysisResult = sourceId
+        ? await client.query<AnalysisRow>(
+            `
+              select
+                id,
+                source_id,
+                analysis_payload
+              from analyses
+              where source_id = $1
+              order by created_at desc
+              limit 1
+            `,
+            [sourceId],
+          )
+        : null;
+      const analysis = analysisResult?.rows[0] ?? null;
+      const contentInput: ContentPackForIdeaInput = {
+        idea: {
+          id: idea.id,
+          topic: idea.topic,
+          angle: idea.angle,
+          source_refs: idea.source_refs,
+          platform_targets: idea.platform_targets,
+          priority_score: idea.priority_score,
+          idea_payload:
+            idea.idea_payload && typeof idea.idea_payload === "object" ? idea.idea_payload : {},
+        },
+        analysis: analysis
+          ? {
+              id: analysis.id,
+              source_id: analysis.source_id,
+              analysis_payload:
+                analysis.analysis_payload && typeof analysis.analysis_payload === "object"
+                  ? analysis.analysis_payload
+                  : {},
+            }
+          : null,
+        source,
+      };
+      const { packInput, auditActions } = await buildContentPackInput(contentInput);
+      const packResult = await client.query<ContentPackRow>(
+        `
+          insert into content_packs (
+            source_id,
+            analysis_id,
+            idea_id,
+            title,
+            platform,
+            format,
+            draft_text,
+            hooks,
+            captions,
+            visual_brief,
+            image_prompt,
+            video_script,
+            cta,
+            checklist,
+            status,
+            content_pack_payload
+          )
+          values (
+            $1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10, $11, $12, $13, $14::jsonb, $15, $16::jsonb
+          )
+          returning ${packColumns()}
+        `,
+        [
+          packInput.source_id,
+          packInput.analysis_id,
+          packInput.idea_id,
+          packInput.title,
+          packInput.platform,
+          packInput.format,
+          packInput.draft_text,
+          JSON.stringify(packInput.hooks),
+          JSON.stringify(packInput.captions),
+          packInput.visual_brief,
+          packInput.image_prompt,
+          packInput.video_script,
+          packInput.cta,
+          JSON.stringify(packInput.checklist),
+          packInput.status,
+          JSON.stringify(packInput.payload),
+        ],
+      );
+      const pack = packResult.rows[0];
+
+      if (!pack) {
+        throw new Error("Content pack insert did not return a row.");
+      }
+
+      const assetResult = await client.query<ContentAssetRow>(
+        `
+          insert into content_assets (
+            pack_id,
+            platform,
+            format,
+            text,
+            image_prompt,
+            video_prompt,
+            source_refs,
+            status,
+            version,
+            qc_score
+          )
+          values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10)
+          returning ${assetColumns()}
+        `,
+        [
+          pack.id,
+          "telegram",
+          "post",
+          packInput.draft_text,
+          packInput.image_prompt,
+          packInput.video_script,
+          JSON.stringify(normalizeSourceRefs(idea.source_refs)),
+          "draft",
+          1,
+          82,
+        ],
+      );
+      const asset = assetResult.rows[0];
+
+      if (!asset) {
+        throw new Error("Content asset insert did not return a row.");
+      }
+
+      const checks = await ensureReviewChecks(client, pack.id);
+
+      await client.query(
+        `
+          update ideas
+          set status = 'in_pack'
+          where id = $1
+        `,
+        [idea.id],
+      );
+
+      await writeAuditLog(
+        {
+          stage: "content_packs",
+          entityType: "content_pack",
+          entityId: pack.id,
+          ...(actor ? { actor } : {}),
+          action: "build_content_pack",
+          statusAfter: pack.status,
+          result: "success",
+          message: "Content pack generated from idea",
+          level: "success",
+          metadata: {
+            source_id: pack.source_id,
+            analysis_id: pack.analysis_id,
+            idea_id: idea.id,
+            asset_count: 1,
+          },
+        },
+        client,
+      );
+
+      for (const auditAction of auditActions) {
+        await writeAuditLog(
+          {
+            stage: "content_packs",
+            entityType: "content_pack",
+            entityId: pack.id,
+            ...(actor ? { actor } : {}),
+            action: auditAction.action,
+            result: auditAction.result,
+            message: auditAction.message,
+            level: auditAction.level,
+            metadata: {
+              source_id: pack.source_id,
+              analysis_id: pack.analysis_id,
+              idea_id: idea.id,
+              ...auditAction.metadata,
+            },
+          },
+          client,
+        );
+      }
+
+      return { pack, assets: [asset], review_checks: checks };
     });
 
     if (!result) {

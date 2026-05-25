@@ -99,6 +99,12 @@ export const backendApi = {
       assets: ContentAsset[];
       review_checks: ReviewCheck[];
     }>(`/api/ideas/${ideaId}/build-pack`),
+  ideaToContentPack: (ideaId: string) =>
+    postData<{
+      pack: ContentPack;
+      assets: ContentAsset[];
+      review_checks: ReviewCheck[];
+    }>(`/api/ideas/${ideaId}/to-content-pack`),
 
   getContentPacks: () => getData<ContentPack[]>("/api/content-packs"),
   getContentAssets: () => getData<ContentAsset[]>("/api/content-assets"),

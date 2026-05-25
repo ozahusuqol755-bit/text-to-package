@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildDeterministicContentPack,
   buildDeterministicIdea,
   buildDeterministicViralAnalysis,
   type AnalysisForIdeaInput,
+  type ContentPackForIdeaInput,
   type SourceForViralAnalysis,
 } from "./viralContent";
 
@@ -99,5 +101,68 @@ describe("buildDeterministicIdea", () => {
     );
     expect(idea.source_refs).toEqual(["source-1"]);
     expect(idea.priority).toBe("high");
+  });
+});
+
+describe("buildDeterministicContentPack", () => {
+  it("builds a non-empty content pack from idea, analysis, and source metrics", () => {
+    const input: ContentPackForIdeaInput = {
+      idea: {
+        id: "idea-1",
+        topic: "Адаптация: weekly creator system",
+        angle: "Use high engagement as proof for an operator checklist",
+        source_refs: ["source-1"],
+        platform_targets: ["telegram"],
+        priority_score: 88,
+        idea_payload: {
+          title: "Weekly creator system",
+          thesis: "A metrics-backed operator checklist can adapt this ref.",
+          format: "telegram_post",
+          platform: "telegram",
+          hook: "Steal this weekly creator system",
+          outline: ["Hook", "Pattern", "Operator checklist"],
+          adaptation_note: "Use high shares as the adaptation filter.",
+          risk_to_check: "Do not copy the original structure.",
+        },
+      },
+      analysis: {
+        id: "analysis-1",
+        source_id: "source-1",
+        analysis_payload: {
+          metrics_signal: {
+            strength: "high",
+            reason: "high reach and shares",
+          },
+          why_it_worked: "It made a repeatable system feel simple.",
+          risks: ["Check source context."],
+        },
+      },
+      source: {
+        id: "source-1",
+        title: "Creator growth playbook",
+        url: "https://example.com/ref",
+        raw_payload: {
+          views: 150000,
+          shares: 4200,
+          engagement_rate: 12.5,
+          platform: "TikTok",
+          author: "@growth",
+          caption: "The simple system creators use every week",
+        },
+      },
+    };
+
+    const pack = buildDeterministicContentPack(input);
+
+    expect(pack.title).toContain("Weekly creator system");
+    expect(pack.platform).toBe("telegram");
+    expect(pack.format).toBe("telegram_post");
+    expect(pack.draft_text).toContain("Steal this weekly creator system");
+    expect(pack.hooks).toHaveLength(3);
+    expect(pack.checklist).toEqual(
+      expect.arrayContaining(["Verify source context and avoid copying the original."]),
+    );
+    expect(pack.payload.source_id).toBe("source-1");
+    expect(pack.payload.analysis_id).toBe("analysis-1");
   });
 });

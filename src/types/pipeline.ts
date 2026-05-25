@@ -145,18 +145,34 @@ export interface ContentAsset {
 
 export type PackStatus =
   | "draft"
+  | "drafted"
   | "rewrite_requested"
   | "ready_for_review"
+  | "needs_review"
   | "approved"
   | "rejected"
   | "scheduled"
   | "publishing"
-  | "published";
+  | "published"
+  | "failed";
 
 export interface ContentPack {
   id: string;
+  source_id?: string;
+  analysis_id?: string;
   idea_id: string;
   title: string;
+  platform?: string;
+  format?: string;
+  draft_text?: string;
+  hooks?: string[];
+  captions?: string[];
+  visual_brief?: string;
+  image_prompt?: string;
+  video_script?: string;
+  cta?: string;
+  checklist?: string[];
+  content_pack_payload?: Record<string, unknown>;
   status: PackStatus;
   approved_by?: string;
   approved_at?: string;
