@@ -116,6 +116,8 @@ docker compose up -d --build api
 - `GET /api/content-packs`
 - `POST /api/ideas/:id/build-pack`
 - `POST /api/ideas/:id/to-content-pack`
+- `GET /api/packs/:id/export/markdown`
+- `GET /api/content-packs/:id/export/markdown`
 - `GET /api/content-assets`
 - `GET /api/review-checks`
 - `POST /api/content-packs/:id/send-to-review`
@@ -210,6 +212,20 @@ curl -sS http://127.0.0.1:4000/api/content-packs
 curl -sS http://127.0.0.1:4000/api/content-assets
 curl -sS http://127.0.0.1:4000/api/logs
 ```
+
+## Content Pack Markdown Export
+
+```bash
+PACK_ID="<created-pack-id>"
+
+curl -sS "http://127.0.0.1:4000/api/packs/${PACK_ID}/export/markdown" \
+  -o "content-pack-${PACK_ID}.md"
+
+curl -sS http://127.0.0.1:4000/api/logs
+```
+
+The export includes source metrics, analysis, idea, content pack fields, review
+status, and non-secret AI metadata. API keys are never included.
 
 ## Content Pack Review Flow
 

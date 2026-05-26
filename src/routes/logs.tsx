@@ -66,6 +66,8 @@ const ACTION_LABEL: Record<string, string> = {
   ai_request_finished: "AI запрос завершён",
   ai_error: "AI ошибка",
   ai_fallback_used: "fallback AI",
+  export_content_pack_markdown: "Markdown экспортирован",
+  export_content_pack_markdown_failed: "Markdown export failed",
 };
 
 const LEVEL_TO_RESULT: Record<string, LogResult> = {

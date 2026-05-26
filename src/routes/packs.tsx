@@ -5,12 +5,15 @@ import { usePipeline } from "@/store/PipelineStore";
 import { StageHeader, ToolsRow, SectionTitle, EmptyState } from "@/components/stage/StageHeader";
 import { StatusBadge } from "@/components/stage/StatusBadge";
 import { DetailDrawer } from "@/components/DetailDrawer";
+import { backendApi } from "@/lib/backendApi";
 import {
   ArrowRight,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  Copy,
   Clock3,
+  Download,
   Hash,
   Info,
   Lock,
@@ -40,6 +43,32 @@ function PacksPage() {
   const [assetDrawerId, setAssetDrawerId] = useState<string | null>(null);
   const packDrawer = s.packs.find((p) => p.id === packDrawerId) ?? null;
   const assetDrawer = s.assets.find((a) => a.id === assetDrawerId) ?? null;
+
+  const downloadMarkdown = async (packId: string, title: string) => {
+    try {
+      const markdown = await backendApi.getPackMarkdown(packId);
+      const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `content-pack-${packId}.md`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success(`Markdown экспортирован: ${title}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Markdown export failed");
+    }
+  };
+
+  const copyMarkdown = async (packId: string) => {
+    try {
+      const markdown = await backendApi.getPackMarkdown(packId);
+      await navigator.clipboard.writeText(markdown);
+      toast.success("Markdown скопирован");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Copy Markdown failed");
+    }
+  };
 
   return (
     <>
@@ -137,6 +166,21 @@ function PacksPage() {
                 <div className="mt-2 flex items-center gap-1.5 text-[10px] text-muted-foreground">
                   <Clock3 className="size-3" />
                   <span>{new Date(pack.created_at).toLocaleString("ru")}</span>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => void downloadMarkdown(pack.id, pack.title)}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-white/5 border border-border px-3 py-2 text-xs font-semibold hover:bg-white/10"
+                  >
+                    <Download className="size-3.5" /> Export Markdown
+                  </button>
+                  <button
+                    onClick={() => void copyMarkdown(pack.id)}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-white/5 border border-border px-3 py-2 text-xs font-semibold hover:bg-white/10"
+                  >
+                    <Copy className="size-3.5" /> Copy Markdown
+                  </button>
                 </div>
               </div>
 

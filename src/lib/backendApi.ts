@@ -119,6 +119,20 @@ async function postData<T>(path: string, body?: unknown): Promise<T> {
   return envelope.data;
 }
 
+async function getText(path: string): Promise<string> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: {
+      "x-telegram-init-data": "dev-frontend-demo",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.status}`);
+  }
+
+  return response.text();
+}
+
 export const backendApi = {
   getAiStatus: () => getData<AiStatus>("/api/ai/status"),
   getAiUsage: () => getData<AiUsageResponse>("/api/ai/usage"),
@@ -153,6 +167,10 @@ export const backendApi = {
     }>(`/api/ideas/${ideaId}/to-content-pack`),
 
   getContentPacks: () => getData<ContentPack[]>("/api/content-packs"),
+  getPackMarkdownUrl: (packId: string) =>
+    `${API_BASE_URL}/api/packs/${encodeURIComponent(packId)}/export/markdown`,
+  getPackMarkdown: (packId: string) =>
+    getText(`/api/packs/${encodeURIComponent(packId)}/export/markdown`),
   getContentAssets: () => getData<ContentAsset[]>("/api/content-assets"),
   sendToReview: (packId: string) =>
     postData<{ pack: ContentPack; review_checks: ReviewCheck[] }>(

@@ -1,10 +1,11 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { PoolClient } from "pg";
 import { z } from "zod";
 import { query, transaction } from "../db.js";
 import { isAiConfigured, requestStructuredJsonWithUsage, resolveAiTaskConfig } from "../lib/ai.js";
 import { writeAuditLog } from "../lib/auditLog.js";
 import { writeAiUsageLog, type AiUsageLogInput } from "../lib/aiUsage.js";
+import { buildContentPackMarkdown } from "../lib/contentPackMarkdown.js";
 import { canApprovePack } from "../lib/guards.js";
 import {
   buildDeterministicContentPack,
@@ -36,8 +37,18 @@ interface SourceRow {
 interface AnalysisRow {
   id: string;
   source_id: string | null;
+  meaning?: string | null;
+  hook?: string | null;
+  angle?: string | null;
   analysis_payload: unknown;
 }
+
+interface AiUsageExportRow {
+  task_type: string;
+  model_used: string | null;
+}
+
+type PackIdRequest = FastifyRequest<{ Params: { id: string } }>;
 
 interface ContentPackRow {
   id: string;
@@ -191,6 +202,35 @@ function checkColumns(): string {
     note,
     created_at,
     updated_at
+  `;
+}
+
+function sourceColumns(): string {
+  return `
+    id,
+    title,
+    url,
+    raw_payload
+  `;
+}
+
+function ideaExportColumns(): string {
+  return `
+    id,
+    topic,
+    angle,
+    idea_payload
+  `;
+}
+
+function analysisExportColumns(): string {
+  return `
+    id,
+    source_id,
+    meaning,
+    hook,
+    angle,
+    analysis_payload
   `;
 }
 
@@ -568,6 +608,139 @@ export async function packRoutes(app: FastifyInstance): Promise<void> {
 
     return { data: result.rows };
   });
+
+  const exportMarkdownHandler = async (request: PackIdRequest, reply: FastifyReply) => {
+    const parsedParams = PackIdParamsSchema.safeParse(request.params);
+
+    if (!parsedParams.success) {
+      return reply.status(400).send({
+        error: "validation_error",
+        issues: parsedParams.error.issues,
+      });
+    }
+
+    const actor = request.actor?.username ?? request.actor?.id;
+    const packId = parsedParams.data.id;
+    const result = await transaction(async (client) => {
+      const packResult = await client.query<ContentPackRow>(
+        `
+          select ${packColumns()}
+          from content_packs
+          where id = $1
+        `,
+        [packId],
+      );
+      const pack = packResult.rows[0];
+
+      if (!pack) {
+        await writeAuditLog(
+          {
+            stage: "content_packs",
+            entityType: "content_pack",
+            entityId: packId,
+            ...(actor ? { actor } : {}),
+            action: "export_content_pack_markdown_failed",
+            result: "error",
+            message: "Content pack markdown export failed: pack not found",
+            level: "error",
+          },
+          client,
+        );
+        return null;
+      }
+
+      const [sourceResult, analysisResult, ideaResult, aiUsageResult] = await Promise.all([
+        pack.source_id
+          ? client.query<SourceRow>(
+              `
+                select ${sourceColumns()}
+                from sources
+                where id = $1
+              `,
+              [pack.source_id],
+            )
+          : Promise.resolve({ rows: [] as SourceRow[] }),
+        pack.analysis_id
+          ? client.query<AnalysisRow>(
+              `
+                select ${analysisExportColumns()}
+                from analyses
+                where id = $1
+              `,
+              [pack.analysis_id],
+            )
+          : Promise.resolve({ rows: [] as AnalysisRow[] }),
+        client.query<IdeaRow>(
+          `
+            select ${ideaExportColumns()}
+            from ideas
+            where id = $1
+          `,
+          [pack.idea_id],
+        ),
+        client.query<AiUsageExportRow>(
+          `
+            select
+              task_type,
+              model_used
+            from ai_usage_logs
+            where task_type = 'content_pack'
+            order by created_at desc
+            limit 1
+          `,
+        ),
+      ]);
+
+      const markdown = buildContentPackMarkdown({
+        generatedAt: new Date().toISOString(),
+        aiMode: isAiConfigured("content_pack") ? "configured" : "fallback",
+        pack,
+        source: sourceResult.rows[0] ?? null,
+        analysis: analysisResult.rows[0] ?? null,
+        idea: ideaResult.rows[0] ?? null,
+        aiUsage: aiUsageResult.rows[0] ?? null,
+      });
+
+      await writeAuditLog(
+        {
+          stage: "content_packs",
+          entityType: "content_pack",
+          entityId: pack.id,
+          ...(actor ? { actor } : {}),
+          action: "export_content_pack_markdown",
+          statusAfter: pack.status,
+          result: "success",
+          message: "Content pack markdown exported",
+          level: "success",
+          metadata: {
+            pack_id: pack.id,
+            source_id: pack.source_id,
+            analysis_id: pack.analysis_id,
+            idea_id: pack.idea_id,
+          },
+        },
+        client,
+      );
+
+      return markdown;
+    });
+
+    if (!result) {
+      return reply.status(404).send({
+        error: "not_found",
+        message: "Content pack not found.",
+      });
+    }
+
+    return reply
+      .header("content-type", "text/markdown; charset=utf-8")
+      .header("content-disposition", `attachment; filename="content-pack-${packId}.md"`)
+      .status(200)
+      .send(result);
+  };
+
+  app.get("/api/packs/:id/export/markdown", exportMarkdownHandler);
+  app.get("/api/content-packs/:id/export/markdown", exportMarkdownHandler);
 
   app.post("/api/ideas/:id/build-pack", async (request, reply) => {
     const parsedParams = IdeaIdParamsSchema.safeParse(request.params);
