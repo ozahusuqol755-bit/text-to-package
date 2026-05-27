@@ -115,4 +115,38 @@ describe("buildContentPackMarkdown", () => {
     expect(markdown).not.toContain("secret-value");
     expect(markdown).not.toContain("AI_API_KEY");
   });
+
+  it("falls back to legacy analysis and idea columns when payload fields are missing", () => {
+    const markdown = buildContentPackMarkdown({
+      generatedAt: "2026-05-26T10:00:00.000Z",
+      aiMode: "fallback",
+      pack: {
+        id: "pack-3",
+        source_id: null,
+        analysis_id: "analysis-3",
+        idea_id: "idea-3",
+        title: "Fallback Pack",
+        status: "drafted",
+      },
+      analysis: {
+        id: "analysis-3",
+        meaning: "Legacy summary",
+        hook: "Legacy hook",
+        angle: "Legacy angle",
+        analysis_payload: {},
+      },
+      idea: {
+        id: "idea-3",
+        topic: "Legacy idea title",
+        angle: "Legacy thesis",
+        idea_payload: {},
+      },
+    });
+
+    expect(markdown).toContain("### Summary\nLegacy summary");
+    expect(markdown).toContain("### Hook\nLegacy hook");
+    expect(markdown).toContain("### Angle\nLegacy angle");
+    expect(markdown).toContain("### Title\nLegacy idea title");
+    expect(markdown).toContain("### Thesis\nLegacy thesis");
+  });
 });

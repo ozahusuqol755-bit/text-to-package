@@ -65,8 +65,19 @@ function text(value: unknown): string {
   return NA;
 }
 
-function payloadText(payload: JsonObject | null | undefined, key: string): string {
-  return text(payload?.[key]);
+function optionalText(value: unknown): string | null {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return null;
+}
+
+function firstText(...values: unknown[]): string {
+  for (const value of values) {
+    const normalized = optionalText(value);
+    if (normalized) return normalized;
+  }
+
+  return NA;
 }
 
 function metric(payload: JsonObject | null | undefined, keys: string[]): string {
@@ -128,17 +139,17 @@ export function buildContentPackMarkdown(input: ContentPackMarkdownInput): strin
     `  - Engagement rate: ${metric(sourcePayload, ["engagement_rate", "er"])}`,
     "",
     "## Analysis",
-    section("Summary", payloadText(analysisPayload, "summary") || text(analysis?.meaning)),
+    section("Summary", firstText(analysisPayload.summary, analysis?.meaning)),
     "",
-    section("Why it worked", payloadText(analysisPayload, "why_it_worked")),
+    section("Why it worked", firstText(analysisPayload.why_it_worked)),
     "",
-    section("Audience", payloadText(analysisPayload, "audience")),
+    section("Audience", firstText(analysisPayload.audience)),
     "",
-    section("Hook", payloadText(analysisPayload, "hook") || text(analysis?.hook)),
+    section("Hook", firstText(analysisPayload.hook, analysis?.hook)),
     "",
-    section("Angle", payloadText(analysisPayload, "angle") || text(analysis?.angle)),
+    section("Angle", firstText(analysisPayload.angle, analysis?.angle)),
     "",
-    section("Format pattern", payloadText(analysisPayload, "format_pattern")),
+    section("Format pattern", firstText(analysisPayload.format_pattern)),
     "",
     section(
       "Metrics signal",
@@ -150,21 +161,21 @@ export function buildContentPackMarkdown(input: ContentPackMarkdownInput): strin
     section("Risks", bulletList(stringArray(analysisPayload.risks))),
     "",
     "## Idea",
-    section("Title", payloadText(ideaPayload, "title") || text(idea?.topic)),
+    section("Title", firstText(ideaPayload.title, idea?.topic)),
     "",
-    section("Thesis", payloadText(ideaPayload, "thesis") || text(idea?.angle)),
+    section("Thesis", firstText(ideaPayload.thesis, idea?.angle)),
     "",
-    section("Format", payloadText(ideaPayload, "format")),
+    section("Format", firstText(ideaPayload.format)),
     "",
-    section("Platform", payloadText(ideaPayload, "platform")),
+    section("Platform", firstText(ideaPayload.platform)),
     "",
-    section("Hook", payloadText(ideaPayload, "hook")),
+    section("Hook", firstText(ideaPayload.hook)),
     "",
     section("Outline", numberedList(stringArray(ideaPayload.outline))),
     "",
-    section("Adaptation note", payloadText(ideaPayload, "adaptation_note")),
+    section("Adaptation note", firstText(ideaPayload.adaptation_note)),
     "",
-    section("Risk to check", payloadText(ideaPayload, "risk_to_check")),
+    section("Risk to check", firstText(ideaPayload.risk_to_check)),
     "",
     "## Content Pack",
     section("Draft text", text(pack.draft_text)),
